@@ -9,6 +9,7 @@ import { ToastProvider } from './components/ui/toast';
 import { useVideoStreams } from './components/cameras/hooks';
 import { useScreenshare } from './components/screenshare/hooks';
 import { PipWindowProvider } from './components/contexts/pip-window';
+import { LayoutProvider } from './components/contexts/layout';
 
 interface PluginPipProps {
   pluginApi: PluginApi;
@@ -20,29 +21,36 @@ function PluginPip({ pluginApi, pipWindow }: PluginPipProps): React.ReactNode {
   const { data: webcams } = useVideoStreams(pluginApi);
   const { data: screenshare } = useScreenshare(pluginApi);
   const presenter = currentUser?.presenter;
+  const moderator = currentUser?.role === 'MODERATOR';
   const hasWebcams = Boolean(webcams?.user_camera?.length);
   const hasScreenshare = Boolean(screenshare?.screenshare?.length);
 
   const containerClassName = ['container'];
 
-  containerClassName.push(presenter ? 'presenter-view' : 'viewer-view');
   if (hasWebcams) containerClassName.push('has-webcams');
   if (hasScreenshare) containerClassName.push('has-screenshare');
 
   return (
     <PipWindowProvider pipWindow={pipWindow}>
-      <ToastProvider>
-        <div className={containerClassName.join(' ')}>
-          <div className="video">
-            <ScreenshareComponent pluginApi={pluginApi} />
-            <CamerasComponent pluginApi={pluginApi} />
+      <LayoutProvider
+        hasCameras={hasWebcams}
+        hasScreenshare={hasScreenshare}
+        presenter={presenter}
+        moderator={moderator}
+      >
+        <ToastProvider>
+          <div className={containerClassName.join(' ')}>
+            <div className="video">
+              <ScreenshareComponent pluginApi={pluginApi} />
+              <CamerasComponent pluginApi={pluginApi} />
+            </div>
+            <ActionsComponent pluginApi={pluginApi} pipWindow={pipWindow} />
           </div>
-          <ActionsComponent pluginApi={pluginApi} pipWindow={pipWindow} />
-        </div>
-        <ChatNotifier pluginApi={pluginApi} />
-        {presenter && <RaisedHandNotifier pluginApi={pluginApi} />}
-        <div id="modals-root" style={{ zIndex: 9999 }} />
-      </ToastProvider>
+          <ChatNotifier pluginApi={pluginApi} />
+          {presenter && <RaisedHandNotifier pluginApi={pluginApi} />}
+          <div id="modals-root" style={{ zIndex: 9999 }} />
+        </ToastProvider>
+      </LayoutProvider>
     </PipWindowProvider>
   );
 }

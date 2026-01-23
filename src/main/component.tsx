@@ -75,6 +75,7 @@ const cssRules = css`
     height: 100%;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .actions {
@@ -168,17 +169,11 @@ const cssRules = css`
     flex-shrink: 1;
     overflow: hidden;
     position: relative;
-    padding: 0.75rem;
-    display: flex;
-    gap: 1rem;
   }
 
   .webcams {
     display: grid;
-    place-items: center;
-    gap: 0.25rem;
-    max-height: 100%;
-    overflow: auto;
+    gap: 6px;
   }
 
   .webcams video {
@@ -186,86 +181,32 @@ const cssRules = css`
     height: 100%;
   }
 
-  .presenter-view.has-screenshare.has-webcams .video {
-    flex-direction: row-reverse;
-  }
-
   .pip-video-container {
     position: relative;
     display: flex;
-    max-width: 240px;
-    min-width: 120px;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
   }
 
-  .viewer-view.has-screenshare .pip-video-container {
-    max-width: 160px;
+  .cameras {
+    padding: 0.5rem;
   }
 
   .screenshare {
     display: flex;
     align-items: center;
     justify-content: center;
-
-    .screenshare-placeholder {
-      display: grid;
-      place-items: center;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      border-radius: 0.5rem;
-      color: #eee;
-      background-color: #292929;
-      padding: 0.5rem;
-
-      span {
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        max-width: 100%;
-      }
-    }
+    padding: 0.5rem;
 
     video {
       height: 100%;
       width: auto;
-      object-position: top;
     }
   }
 
   .container:not(.has-webcams) .screenshare video {
     object-position: center;
-  }
-
-  .viewer-view.has-screenshare.has-webcams .screenshare {
-    flex-grow: 1;
-  }
-
-  .viewer-view.has-screenshare.has-webcams .webcams {
-    max-width: max-content;
-    min-width: min-content;
-  }
-
-  .viewer-view:not(.has-screenshare).has-webcams .webcams {
-    flex-grow: 1;
-  }
-
-  .viewer-view.has-screenshare:not(.has-webcams) .screenshare {
-    flex-grow: 1;
-  }
-
-  .presenter-view.has-screenshare.has-webcams .screenshare {
-    max-width: 25%;
-  }
-
-  .presenter-view.has-screenshare.has-webcams .webcams {
-    flex-grow: 1;
-  }
-
-  .presenter-view:not(.has-screenshare).has-webcams .webcams {
-    flex-grow: 1;
-  }
-
-  .presenter-view.has-screenshare:not(.has-webcams) .screenshare {
-    flex-grow: 1;
   }
 
   @keyframes pulse {
@@ -339,7 +280,7 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
     const handler = async () => {
       if (isPipSupported && pipActiveRef.current && hasMediaRef.current && document.hidden) {
         try {
-          // @ts-expect-error This web API may not be supported by major browsers.
+          // @ts-expect-error This web API may not be supported by all major browsers.
           const pipWindow = await documentPictureInPicture.requestWindow({
             height: 270,
             width: 480,

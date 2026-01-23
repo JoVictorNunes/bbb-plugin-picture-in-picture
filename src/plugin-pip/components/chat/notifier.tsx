@@ -108,9 +108,8 @@ function ChatMessageToast({ message }: ChatMessageToastProps): React.ReactElemen
           </div>
         )}
       </div>
-      <div style={messageStyles}>
-        {message.message}
-      </div>
+      {/* eslint-disable-next-line react/no-danger */}
+      <div style={messageStyles} dangerouslySetInnerHTML={{ __html: message.messageAsHtml }} />
     </div>
   );
 }

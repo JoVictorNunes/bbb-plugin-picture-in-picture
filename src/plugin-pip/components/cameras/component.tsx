@@ -2,9 +2,11 @@ import * as React from 'react';
 import { useEffect } from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { useVideoStreams } from './hooks';
-import Video from './video';
-import { useScreenshare } from '../screenshare/hooks';
+import VideoItem from './video-item';
 import Loader from '../ui/loader';
+import { range } from './utils';
+import { useLayoutContext } from '../contexts/layout';
+import { usePipWindow } from '../contexts/pip-window';
 
 const createVideoSelector = (streamId: string) => `.video-provider_list .videoContainer[data-stream="${streamId}"] video`;
 
@@ -16,7 +18,8 @@ const pollForVideoSrc = (
   const start = performance.now();
   const selector = createVideoSelector(streamId);
 
-  const poll = (timestamp: number) => {
+  const poll = () => {
+    const timestamp: number = performance.now();
     const element = container.querySelector(selector);
     if (element && element instanceof HTMLVideoElement && element.srcObject) {
       return resolve(element.srcObject as MediaStream);
@@ -24,11 +27,86 @@ const pollForVideoSrc = (
     if (timestamp - start > TIMEOUT) {
       return resolve(null);
     }
-    return requestAnimationFrame(poll);
+    return setTimeout(poll);
   };
 
-  requestAnimationFrame(poll);
+  setTimeout(poll);
 });
+
+const ASPECT_RATIO = 4 / 3;
+
+const calculateOptimalGrid = (
+  canvasWidth: number,
+  canvasHeight: number,
+  gutter: number,
+  aspectRatio: number,
+  numItems: number,
+  columns = 1,
+) => {
+  const rows = Math.ceil(numItems / columns);
+  const gutterTotalWidth = (columns - 1) * gutter;
+  const gutterTotalHeight = (rows - 1) * gutter;
+  const usableWidth = canvasWidth - gutterTotalWidth;
+  const usableHeight = canvasHeight - gutterTotalHeight;
+  let cellWidth = Math.floor(usableWidth / columns);
+  let cellHeight = Math.ceil(cellWidth / aspectRatio);
+  if ((cellHeight * rows) > usableHeight) {
+    cellHeight = Math.floor(usableHeight / rows);
+    cellWidth = Math.ceil(cellHeight * aspectRatio);
+  }
+  return {
+    columns,
+    rows,
+    width: (cellWidth * columns) + gutterTotalWidth,
+    height: (cellHeight * rows) + gutterTotalHeight,
+    filledArea: (cellWidth * cellHeight) * numItems,
+  };
+};
+
+const findOptimalGrid = (
+  gridRect: { width: number; height: number } | null,
+  numItems: number,
+) => {
+  if (numItems < 1) {
+    return {
+      rows: 0,
+      filledArea: 0,
+      columns: 0,
+      height: 0,
+      width: 0,
+    };
+  }
+
+  const canvasWidth = gridRect?.width ?? 0;
+  const canvasHeight = gridRect?.height ?? 0;
+
+  const newOptimalGrid = range(1, numItems + 1)
+    .reduce((currentGrid, col) => {
+      const testGrid = calculateOptimalGrid(
+        canvasWidth,
+        canvasHeight,
+        6,
+        ASPECT_RATIO,
+        numItems,
+        col,
+      );
+      const betterThanCurrent = testGrid.filledArea > currentGrid.filledArea;
+      return betterThanCurrent ? testGrid : currentGrid;
+    }, {
+      rows: 0,
+      filledArea: 0,
+      columns: 0,
+      height: 0,
+      width: 0,
+    });
+
+  return newOptimalGrid;
+};
+
+const extractVideoStreamIds = (container: Element | null): string[] => {
+  const items = container ? Array.from(container.querySelectorAll('.videoContainer')) : [];
+  return items.map((item) => item.getAttribute('data-stream'));
+};
 
 const VIDEO_LIST_CLASSNAME = 'video-provider_list';
 
@@ -47,49 +125,101 @@ interface CamerasComponentProps {
 function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode {
   const [videos, setVideos] = React.useState<Media[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [lastUpdate, setLastUpdate] = React.useState(Date.now());
+  const { cameras: camerasRect } = useLayoutContext();
+  const pipWindow = usePipWindow();
+  const camerasRef = React.useRef<HTMLDivElement>(null);
 
   const {
     data: videoStreamsData,
   } = useVideoStreams(pluginApi);
-  const { data: currentUser } = pluginApi.useCurrentUser();
-  const {
-    data: screenshareData,
-  } = useScreenshare(pluginApi);
-  const isSharingScreen = Boolean(screenshareData?.screenshare[0]?.stream);
 
   useEffect(() => {
     async function update() {
       const videoList = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
+      const videoStreamIds = extractVideoStreamIds(videoList);
+      const videoIndexes = Object.fromEntries(Object.entries(videoStreamIds)
+        .map(([index, streamId]) => ([streamId, Number.parseInt(index, 10)])));
       const streams = videoStreamsData?.user_camera || [];
 
       const videoSrc = streams.map(
         async (stream) => {
           const srcObject = await pollForVideoSrc(stream.streamId, videoList);
 
-          return {
-            streamId: stream?.streamId,
-            userName: stream?.user?.name,
-            userId: stream?.user?.userId,
-            userTalking: stream?.voice?.talking,
-            srcObject,
-          };
+          if (srcObject) {
+            return {
+              streamId: stream.streamId,
+              userName: stream.user?.name,
+              userId: stream.user?.userId,
+              userTalking: stream.voice?.talking,
+              srcObject,
+            };
+          }
+
+          return null;
         },
       );
 
       const videoResolved = await Promise.all(videoSrc);
-
-      setVideos(videoResolved.filter((v) => v.srcObject));
+      const actualVideos = videoResolved.filter((v) => v).sort((a, b) => {
+        const indexA = videoIndexes[a.streamId] ?? 0;
+        const indexB = videoIndexes[b.streamId] ?? 0;
+        return indexA - indexB;
+      });
+      return actualVideos;
     }
 
     setLoading(true);
-    update().finally(() => {
-      setLoading(false);
-    });
+    update()
+      .then(setVideos)
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [videoStreamsData, lastUpdate]);
+
+  useEffect(() => {
+    const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
+    const config = { attributes: true, childList: true, subtree: true };
+
+    const callback = () => {
+      setLastUpdate(Date.now());
+    };
+
+    const observer = new MutationObserver(callback);
+
+    if (targetNode) observer.observe(targetNode, config);
+
+    return () => {
+      observer.disconnect();
+    };
   }, [videoStreamsData]);
+
+  const paddingInline = camerasRef.current ? parseInt(pipWindow.getComputedStyle(camerasRef.current)
+    .getPropertyValue('padding-inline'), 10) : 8;
+  const paddingBlock = camerasRef.current ? parseInt(pipWindow.getComputedStyle(camerasRef.current)
+    .getPropertyValue('padding-block'), 10) : 8;
+
+  const optimalGrid = React.useMemo(() => findOptimalGrid(
+    {
+      width: camerasRect.width - (paddingInline * 2),
+      height: camerasRect.height - (paddingBlock * 2),
+    },
+    videos.length,
+  ), [camerasRect, videos.length, paddingInline, paddingBlock]);
 
   if (loading && !videos.length) {
     return (
-      <div className="webcams" style={{ justifyContent: 'center' }}>
+      <div
+        style={{
+          position: 'absolute',
+          left: camerasRect.x,
+          top: camerasRect.y,
+          width: camerasRect.width,
+          height: camerasRect.height,
+          display: 'grid',
+          placeItems: 'center',
+        }}
+      >
         <Loader />
       </div>
     );
@@ -99,30 +229,38 @@ function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode
     return null;
   }
 
-  const style: React.CSSProperties = currentUser?.presenter || !isSharingScreen ? {
-    gridTemplateColumns: `repeat(${videos.length}, minmax(min-content, max-content))`,
-  } : {
-    gridTemplateRows: `repeat(${videos.length}, minmax(min-content, max-content))`,
+  const style: React.CSSProperties = {
+    width: `${optimalGrid.width}px`,
+    height: `${optimalGrid.height}px`,
+    gridTemplateColumns: `repeat(${optimalGrid.columns}, 1fr)`,
+    gridTemplateRows: `repeat(${optimalGrid.rows}, 1fr)`,
   };
 
   return (
-    <div id="plugin-pip-webcams" className="webcams" style={style}>
-      {videos.sort((video1, video2) => {
-        if (video1.userId === currentUser?.userId) {
-          return -1;
-        }
-        if (video2.userId === currentUser?.userId) {
-          return 1;
-        }
-        return 0;
-      }).map((video) => (
-        <div key={video.streamId} className="pip-video-container">
-          <Video srcObject={video.srcObject} talking={video.userTalking} />
-          <span className="username">
-            {video.userName}
-          </span>
-        </div>
-      ))}
+    <div
+      className="cameras"
+      ref={camerasRef}
+      style={{
+        position: 'absolute',
+        left: camerasRect.x,
+        top: camerasRect.y,
+        width: camerasRect.width,
+        height: camerasRect.height,
+        display: 'grid',
+        placeItems: 'center',
+      }}
+    >
+      <div id="plugin-pip-webcams" className="webcams" style={style}>
+        {videos.map((video) => (
+          <VideoItem
+            key={video.streamId}
+            streamId={video.streamId}
+            srcObject={video.srcObject}
+            userTalking={video.userTalking}
+            userName={video.userName}
+          />
+        ))}
+      </div>
     </div>
   );
 }

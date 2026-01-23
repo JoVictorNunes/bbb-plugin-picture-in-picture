@@ -2,6 +2,7 @@ import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import * as React from 'react';
 import { useScreenshare } from './hooks';
 import Video from './video';
+import { useLayoutContext } from '../contexts/layout';
 
 interface Media {
   srcObject: MediaProvider;
@@ -13,7 +14,8 @@ const pollForScreenshareSrc = (
   const TIMEOUT = 5000; // 5 seconds
   const start = performance.now();
 
-  const poll = (timestamp: number) => {
+  const poll = () => {
+    const timestamp: number = performance.now();
     const element = container.querySelector('#screenshareContainer video');
     if (element && element instanceof HTMLVideoElement && element.srcObject) {
       return resolve({ srcObject: element.srcObject });
@@ -21,10 +23,10 @@ const pollForScreenshareSrc = (
     if (timestamp - start > TIMEOUT) {
       return reject();
     }
-    return requestAnimationFrame(poll);
+    return setTimeout(poll);
   };
 
-  requestAnimationFrame(poll);
+  setTimeout(poll);
 });
 
 interface ScreenshareComponentProps {
@@ -39,6 +41,7 @@ function ScreenshareComponent(
     data: screenshareData,
   } = useScreenshare(pluginApi);
   const [screenshare, setScreenshare] = React.useState<Media | null>(null);
+  const { screenshare: screenshareRect } = useLayoutContext();
 
   React.useEffect(() => {
     async function update() {
@@ -61,7 +64,16 @@ function ScreenshareComponent(
   }
 
   return (
-    <div className="screenshare">
+    <div
+      className="screenshare"
+      style={{
+        position: 'absolute',
+        left: screenshareRect.x,
+        top: screenshareRect.y,
+        width: screenshareRect.width,
+        height: screenshareRect.height,
+      }}
+    >
       <Video
         key={screenshareData?.screenshare[0]?.stream}
         srcObject={screenshare.srcObject}

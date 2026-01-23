@@ -7,6 +7,7 @@ export const CHAT_MESSAGE_STREAM = `
       chatId
       createdAt
       message
+      messageAsHtml
       messageId
       messageMetadata
       messageType
@@ -21,6 +22,7 @@ export interface Message {
   messageType: string;
   chatId: string;
   message: string;
+  messageAsHtml: string;
   messageId: string;
   createdAt: string;
   messageMetadata: string | null;
