@@ -180,7 +180,7 @@ function RaisedHandNotifier({ pluginApi }: RaisedHandNotifierProps): React.React
       showToast(
         <RaisedHandContent user={user} lowerUserHands={lowerUserHands} />,
         'default',
-        0, // Persistent toast (duration = 0)
+        10000, // 10 seconds duration
         true, // Dismissible by user
         user.userId,
       );
