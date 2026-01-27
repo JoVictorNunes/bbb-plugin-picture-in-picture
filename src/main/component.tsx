@@ -95,6 +95,7 @@ const cssRules = css`
       border-radius: 0.75rem;
       flex-grow: 1;
       padding: 0.25rem;
+      height: 100%;
     }
   }
 
