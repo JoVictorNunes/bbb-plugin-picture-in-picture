@@ -1,10 +1,11 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom/client';
-import { ActionButtonDropdownOption, BbbPluginSdk } from 'bigbluebutton-html-plugin-sdk';
+import { ActionButtonDropdownOption, BbbPluginSdk, FloatingWindow } from 'bigbluebutton-html-plugin-sdk';
 import { css } from 'styled-components';
 import Pip from '../plugin-pip/component';
 import { useVideoStreams } from '../plugin-pip/components/cameras/hooks';
 import { useScreenshare } from '../plugin-pip/components/screenshare/hooks';
+import FocusWarning from '../plugin-pip/components/warning/component';
 
 const isPipSupported = 'documentPictureInPicture' in window;
 
@@ -253,6 +254,7 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   const pipRootRef = React.useRef<ReactDOM.Root | null>(null);
   const hasMediaRef = React.useRef(false);
   const [pipActive, setPipActive] = React.useState<boolean>(JSON.parse(localStorage.getItem('pip-plugin-active')));
+  const [showFocusWarning, setShowFocusWarning] = React.useState(false);
   const { data: webcams } = useVideoStreams(pluginApi);
   const { data: screenshare } = useScreenshare(pluginApi);
   const hasWebcams = Boolean(webcams?.user_camera?.length);
@@ -346,6 +348,52 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
       document.removeEventListener('visibilitychange', handler);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!isPipSupported || !pipActive) return undefined;
+
+    function handleVisibilityChange() {
+      setShowFocusWarning(!document.hidden);
+    }
+
+    function handleFocus() {
+      setShowFocusWarning(false);
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('click', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('click', handleFocus);
+    };
+  }, [pipActive]);
+
+  React.useEffect(() => {
+    if (!isPipSupported || !pipActive) return;
+
+    if (showFocusWarning) {
+      const actionsButton = document.querySelector('[data-test="actionsButton"]');
+      const rect = actionsButton.getBoundingClientRect();
+      pluginApi.setFloatingWindows([
+        new FloatingWindow({
+          id: 'focus-warning',
+          top: rect.top - 90,
+          left: rect.left + (rect.width / 2) - 181,
+          movable: true,
+          backgroundColor: 'white',
+          boxShadow: 'none',
+          contentFunction: (element: HTMLElement) => {
+            const root = ReactDOM.createRoot(element);
+            root.render(<FocusWarning />);
+            return root;
+          },
+        }),
+      ]);
+    } else {
+      pluginApi.setFloatingWindows([]);
+    }
+  }, [showFocusWarning, pluginApi, pipActive]);
 
   return null;
 }

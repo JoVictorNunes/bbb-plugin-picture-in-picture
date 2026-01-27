@@ -37,13 +37,13 @@ export function LayoutProvider({
   children, hasScreenshare, hasCameras, presenter, moderator,
 }: LayoutProviderProps) {
   const pipWindow = usePipWindow();
-  const [layout, setLayout] = React.useState<LayoutContext | null>(null);
+  const [swapped, setSwapped] = React.useState(
+    (presenter || moderator) && hasScreenshare && hasCameras,
+  );
+  const [layout, setLayout] = React.useState<Omit<LayoutContext, 'swapped'> | null>(null);
 
   React.useEffect(() => {
-    setLayout((prev) => ({
-      ...prev,
-      swapped: (presenter || moderator) && hasScreenshare && hasCameras,
-    }));
+    setSwapped((presenter || moderator) && hasScreenshare && hasCameras);
   }, [presenter, moderator, hasScreenshare, hasCameras]);
 
   React.useEffect(() => {
@@ -97,7 +97,7 @@ export function LayoutProvider({
         };
       }
 
-      if (layout?.swapped) {
+      if (swapped) {
         // Swap screenshare and cameras for presenter view
         const temp = screenshareRect;
         screenshareRect = camerasRect;
@@ -108,7 +108,6 @@ export function LayoutProvider({
         actions: actionsRect,
         screenshare: screenshareRect,
         cameras: camerasRect,
-        swapped: layout?.swapped,
       });
     };
 
@@ -118,14 +117,16 @@ export function LayoutProvider({
     return () => {
       pipWindow.removeEventListener('resize', handleResize);
     };
-  }, [pipWindow, hasScreenshare, hasCameras, layout?.swapped]);
+  }, [pipWindow, hasScreenshare, hasCameras, swapped]);
+
+  const value = React.useMemo(() => (layout ? { ...layout, swapped } : null), [layout, swapped]);
 
   if (!layout?.actions || !layout?.screenshare || !layout?.cameras) {
     return null;
   }
 
   return (
-    <LayoutContext.Provider value={layout}>
+    <LayoutContext.Provider value={value}>
       {children}
     </LayoutContext.Provider>
   );
