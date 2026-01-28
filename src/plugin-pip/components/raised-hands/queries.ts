@@ -12,10 +12,11 @@ export interface RaisedHandUserSubscriptionResponse {
 }
 
 export const RAISED_HAND_USERS = `
-  subscription RaisedHandUsers {
+  subscription RaisedHandUsers($cursor: timestamptz!) {
     user(
       where: {
-        raiseHand: {_eq: true}
+        raiseHand: {_eq: true},
+        raiseHandTime: {_gt: $cursor}
       },
       order_by: [
         {raiseHandTime: asc_nulls_last},

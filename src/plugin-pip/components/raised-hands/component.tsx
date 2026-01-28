@@ -136,9 +136,14 @@ function RaisedHandContent({ user, lowerUserHands }: RaisedHandContentProps) {
 }
 
 function RaisedHandNotifier({ pluginApi }: RaisedHandNotifierProps): React.ReactNode {
+  const cursor = React.useRef(new Date().toISOString());
   const {
     data: raisedHandUsersData,
-  } = pluginApi.useCustomSubscription!<RaisedHandUserSubscriptionResponse>(RAISED_HAND_USERS);
+  } = pluginApi.useCustomSubscription!<RaisedHandUserSubscriptionResponse>(RAISED_HAND_USERS, {
+    variables: {
+      cursor: cursor.current,
+    },
+  });
   const raisedHands = raisedHandUsersData?.user ?? [];
   const { showToast, hideToast, toasts } = useToast();
   const previousRaisedHandsRef = React.useRef<Set<string>>(new Set());
