@@ -98,7 +98,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   const toastStyles: React.CSSProperties = {
     backgroundColor: getBackgroundColor(toast.type),
     color: '#fff',
-    padding: '0.5rem 0.75rem',
+    padding: '0.75rem',
     borderRadius: '0.5rem',
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
     display: 'flex',
@@ -110,6 +110,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
     transform: getTransform(),
     opacity: getOpacity(),
     transition: 'all 0.3s ease-in-out',
+    position: 'relative',
   };
 
   const iconStyles: React.CSSProperties = {
@@ -141,6 +142,9 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
     height: '20px',
     opacity: isHovering ? 1 : 0.8,
     transition: 'opacity 0.2s',
+    position: 'absolute',
+    right: 0,
+    top: 0,
   };
 
   return (
