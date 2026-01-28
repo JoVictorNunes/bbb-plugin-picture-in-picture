@@ -362,11 +362,11 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('click', handleFocus);
+    document.addEventListener('click', handleFocus, { capture: true });
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('click', handleFocus);
+      document.removeEventListener('click', handleFocus, { capture: true });
     };
   }, [pipActive]);
 
