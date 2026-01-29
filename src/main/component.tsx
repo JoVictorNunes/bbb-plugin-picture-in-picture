@@ -371,7 +371,7 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   }, [pipActive]);
 
   React.useEffect(() => {
-    if (!isPipSupported || !pipActive) return;
+    if (!isPipSupported || !pipActive) return undefined;
 
     if (showFocusWarning) {
       const actionsButton = document.querySelector('[data-test="actionsButton"]');
@@ -382,7 +382,7 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
           top: rect.top - 90,
           left: rect.left + (rect.width / 2) - 181,
           movable: true,
-          backgroundColor: 'white',
+          backgroundColor: 'transparent',
           boxShadow: 'none',
           contentFunction: (element: HTMLElement) => {
             const root = ReactDOM.createRoot(element);
@@ -391,9 +391,11 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
           },
         }),
       ]);
-    } else {
-      pluginApi.setFloatingWindows([]);
     }
+
+    return () => {
+      pluginApi.setFloatingWindows([]);
+    };
   }, [showFocusWarning, pluginApi, pipActive]);
 
   return null;

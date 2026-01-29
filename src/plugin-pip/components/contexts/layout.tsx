@@ -27,27 +27,32 @@ export function useLayoutContext(): LayoutContext {
 
 interface LayoutProviderProps {
   children: React.ReactNode;
-  hasScreenshare: boolean;
-  hasCameras: boolean;
-  presenter: boolean;
-  moderator: boolean;
+  hasScreenshare?: boolean;
+  hasCameras?: boolean;
+  presenter?: boolean;
+  moderator?: boolean;
 }
 
 export function LayoutProvider({
   children, hasScreenshare, hasCameras, presenter, moderator,
 }: LayoutProviderProps) {
   const pipWindow = usePipWindow();
-  const [swapped, setSwapped] = React.useState(
-    (presenter || moderator) && hasScreenshare && hasCameras,
-  );
+  const [swapped, setSwapped] = React.useState<boolean | null>(null);
   const [layout, setLayout] = React.useState<Omit<LayoutContext, 'swapped'> | null>(null);
 
+  const loading = [hasCameras, hasScreenshare, presenter, moderator].some((v) => v == null);
+  const swappedFromProps = (presenter || moderator) && hasScreenshare && hasCameras;
+
   React.useEffect(() => {
-    setSwapped((presenter || moderator) && hasScreenshare && hasCameras);
-  }, [presenter, moderator, hasScreenshare, hasCameras]);
+    if (!loading) {
+      setSwapped(swappedFromProps);
+    }
+  }, [swappedFromProps]);
 
   React.useEffect(() => {
     const handleResize = () => {
+      if (hasCameras == null || hasScreenshare == null) return;
+
       const width = pipWindow.innerWidth;
       const height = pipWindow.innerHeight;
 
@@ -121,13 +126,9 @@ export function LayoutProvider({
 
   const value = React.useMemo(() => (layout ? { ...layout, swapped } : null), [layout, swapped]);
 
-  if (!layout?.actions || !layout?.screenshare || !layout?.cameras) {
-    return null;
-  }
-
-  return (
+  return value ? (
     <LayoutContext.Provider value={value}>
       {children}
     </LayoutContext.Provider>
-  );
+  ) : null;
 }
