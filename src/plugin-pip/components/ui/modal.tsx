@@ -12,6 +12,7 @@ interface ModalProps {
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
   footer?: React.ReactNode;
+  renderInPortal?: boolean;
 }
 
 export function Modal({
@@ -24,6 +25,7 @@ export function Modal({
   closeOnOverlayClick = true,
   closeOnEscape = true,
   footer,
+  renderInPortal = true,
 }: ModalProps) {
   const [isAnimating, setIsAnimating] = React.useState(false);
   const modalRef = React.useRef<HTMLDivElement>(null);
@@ -214,10 +216,10 @@ export function Modal({
     </div>
   );
 
-  return ReactDOM.createPortal(
+  return renderInPortal ? ReactDOM.createPortal(
     modalContent,
     pipWindow.document.getElementById('modals-root') as HTMLElement,
-  );
+  ) : modalContent;
 }
 
 // Button components for use in modal footer

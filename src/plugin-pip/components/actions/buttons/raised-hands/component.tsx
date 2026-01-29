@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
+import { CurrentUserData, PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import Tooltip from '../../../ui/tooltip';
 import { RAISED_HAND_USERS, RaisedHandUsersSubscriptionResponse, RaisedHandUser } from './queries';
 import Popover from '../../../ui/popover';
@@ -71,9 +71,13 @@ interface RaisedHandUserItemProps {
   user: RaisedHandUser;
   position: number;
   onLowerHand: (userId: string) => void;
+  canLower: boolean;
+  current: boolean;
 }
 
-function RaisedHandUserItem({ user, position, onLowerHand }: RaisedHandUserItemProps) {
+function RaisedHandUserItem({
+  user, position, onLowerHand, canLower, current,
+}: RaisedHandUserItemProps) {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   const itemStyles: React.CSSProperties = {
@@ -118,14 +122,16 @@ function RaisedHandUserItem({ user, position, onLowerHand }: RaisedHandUserItemP
           isModerator={user.isModerator}
           position={position}
         />
-        <span style={nameStyles}>{user.name}</span>
-        <button
-          style={lowerHandButtonStyles}
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-        >
-          Lower
-        </button>
+        <span style={nameStyles}>{`${user.name} ${current ? '(you)' : ''}`}</span>
+        {canLower && (
+          <button
+            style={lowerHandButtonStyles}
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Lower
+          </button>
+        )}
       </div>
 
       <Modal
@@ -133,6 +139,7 @@ function RaisedHandUserItem({ user, position, onLowerHand }: RaisedHandUserItemP
         onClose={() => setIsModalOpen(false)}
         title="Lower Hand"
         size="sm"
+        renderInPortal={false}
         footer={(
           <>
             <ModalButton variant="secondary" onClick={() => setIsModalOpen(false)}>
@@ -144,12 +151,18 @@ function RaisedHandUserItem({ user, position, onLowerHand }: RaisedHandUserItemP
           </>
         )}
       >
-        <p style={{ margin: 0 }}>
-          Are you sure you want to lower
-          {' '}
-          {user.name}
-          &apos;s hand?
-        </p>
+        {current ? (
+          <p style={{ margin: 0 }}>
+            Are you sure you want to lower your hand
+          </p>
+        ) : (
+          <p style={{ margin: 0 }}>
+            Are you sure you want to lower
+            {' '}
+            {user.name}
+            &apos;s hand?
+          </p>
+        )}
       </Modal>
     </>
   );
@@ -158,9 +171,10 @@ function RaisedHandUserItem({ user, position, onLowerHand }: RaisedHandUserItemP
 interface RaisedHandsListProps {
   users: RaisedHandUser[];
   onLowerHand: (userId: string) => void;
+  currentUser: CurrentUserData;
 }
 
-function RaisedHandsList({ users, onLowerHand }: RaisedHandsListProps) {
+function RaisedHandsList({ users, onLowerHand, currentUser }: RaisedHandsListProps) {
   const containerStyles: React.CSSProperties = {
     minWidth: '200px',
     maxHeight: '70vh',
@@ -196,6 +210,8 @@ function RaisedHandsList({ users, onLowerHand }: RaisedHandsListProps) {
             user={user}
             position={index + 1}
             onLowerHand={onLowerHand}
+            canLower={currentUser?.presenter || currentUser?.role === 'MODERATOR' || user.userId === currentUser?.userId}
+            current={user.userId === currentUser?.userId}
           />
         ))}
       </div>
@@ -209,6 +225,7 @@ function RaisedHandsButtonComponent(
   const {
     data: raisedHandUsers,
   } = pluginApi.useCustomSubscription!<RaisedHandUsersSubscriptionResponse>(RAISED_HAND_USERS);
+  const { data: currentUser } = pluginApi.useCurrentUser();
   const raisedHandCount = raisedHandUsers?.user?.length ?? 0;
   const noRaisedHand = raisedHandCount === 0;
   const users = raisedHandUsers?.user ?? [];
@@ -228,7 +245,7 @@ function RaisedHandsButtonComponent(
   };
 
   const popoverContent = (
-    <RaisedHandsList users={users} onLowerHand={lowerUserHand} />
+    <RaisedHandsList users={users} onLowerHand={lowerUserHand} currentUser={currentUser} />
   );
 
   if (noRaisedHand) {
