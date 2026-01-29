@@ -29,7 +29,7 @@ function ActionsComponent({ pluginApi, pipWindow }: ActionsComponentProps): Reac
         <AudioButtonComponent pluginApi={pluginApi} />
         <WebcamButtonComponent pluginApi={pluginApi} />
         <UnreadChatButtonComponent pluginApi={pluginApi} pipWindow={pipWindow} />
-        <RaisedHandsButtonComponent pluginApi={pluginApi} pipWindow={pipWindow} />
+        <RaisedHandsButtonComponent pluginApi={pluginApi} />
         <div
           style={{
             width: '1px',

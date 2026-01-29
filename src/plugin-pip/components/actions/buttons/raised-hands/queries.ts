@@ -1,6 +1,20 @@
+export interface RaisedHandUser {
+  userId: string;
+  name: string;
+  color: string;
+  presenter: boolean;
+  isModerator: boolean;
+  raiseHand: boolean;
+  raiseHandTime: string;
+}
+
+export interface RaisedHandUsersSubscriptionResponse {
+  user: RaisedHandUser[];
+}
+
 export const RAISED_HAND_USERS = `
   subscription RaisedHandUsers {
-    user_aggregate(
+    user(
       where: {
         raiseHand: {_eq: true}
       },
@@ -8,17 +22,13 @@ export const RAISED_HAND_USERS = `
         {raiseHandTime: asc_nulls_last},
       ]
     ) {
-      aggregate {
-        count
-      }
+      userId
+      name
+      color
+      presenter
+      isModerator
+      raiseHand
+      raiseHandTime
     }
   }
 `;
-
-export interface RaisedHandUsersSubscriptionResult {
-  user_aggregate: {
-    aggregate: {
-      count: number;
-    };
-  };
-}
