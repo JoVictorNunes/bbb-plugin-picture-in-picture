@@ -5,6 +5,8 @@ import { useLayoutContext } from '../../../contexts/layout';
 function LayoutButtonComponent() {
   const { swap, canSwap } = useLayoutContext();
 
+  if (!canSwap) return null;
+
   const className = ['media-btn'];
 
   return (
@@ -13,7 +15,6 @@ function LayoutButtonComponent() {
         className={className.join(' ')}
         type="button"
         onClick={swap}
-        disabled={!canSwap}
       >
         <span className="sr-only">
           Swap layout
