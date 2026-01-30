@@ -6,6 +6,7 @@ import Pip from '../plugin-pip/component';
 import { useVideoStreams } from '../plugin-pip/components/cameras/hooks';
 import { useScreenshare } from '../plugin-pip/components/screenshare/hooks';
 import FocusWarning from '../plugin-pip/components/warning/component';
+import { useCurrentUserVoice } from '../plugin-pip/components/actions/hooks';
 
 const isPipSupported = 'documentPictureInPicture' in window;
 
@@ -252,7 +253,6 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   const pluginApi = BbbPluginSdk.getPluginApi(pluginUuid);
   const pipActiveRef = React.useRef(JSON.parse(localStorage.getItem('pip-plugin-active')));
   const pipWindowRef = React.useRef<Window | null>(null);
-  const pipRootRef = React.useRef<ReactDOM.Root | null>(null);
   const hasMediaRef = React.useRef(false);
   const [pipActive, setPipActive] = React.useState<boolean>(JSON.parse(localStorage.getItem('pip-plugin-active')));
   const [showFocusWarning, setShowFocusWarning] = React.useState(false);
@@ -262,6 +262,9 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   const hasScreenshare = Boolean(screenshare?.screenshare?.length);
   const hasMedia = hasScreenshare || hasWebcams;
   hasMediaRef.current = hasMedia;
+  const { data: currentUser } = pluginApi.useCurrentUser();
+  const { joined: joinedVoice } = useCurrentUserVoice(pluginApi) || {};
+  const amISharingWebcam = Boolean(currentUser?.cameras?.length);
 
   if (isPipSupported) {
     pluginApi.setActionButtonDropdownItems([
@@ -280,73 +283,91 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   }
 
   React.useEffect(() => {
-    const handler = async () => {
-      if (isPipSupported && pipActiveRef.current && hasMediaRef.current && document.hidden) {
-        try {
-          // @ts-expect-error This web API may not be supported by all major browsers.
-          const pipWindow = await documentPictureInPicture.requestWindow({
-            height: 270,
-            width: 480,
-            preferInitialWindowPlacement: true,
-          });
+    const startPipWindow = async () => {
+      if (isPipSupported && pipActiveRef.current && hasMediaRef.current) {
+        // @ts-expect-error This web API may not be supported by all major browsers.
+        if (documentPictureInPicture.window) return false;
 
-          pipWindowRef.current = pipWindow;
+        // @ts-expect-error This web API may not be supported by all major browsers.
+        const pipWindow = await documentPictureInPicture.requestWindow({
+          height: 270,
+          width: 480,
+          preferInitialWindowPlacement: true,
+        });
 
-          const pipDiv = pipWindow.document.createElement('div');
-          pipDiv.setAttribute('id', 'pip-root');
-          pipWindow.document.body.append(pipDiv);
-          const pipRoot = ReactDOM.createRoot(pipWindow.document.getElementById('pip-root'));
-          pipRootRef.current = pipRoot;
+        pipWindowRef.current = pipWindow;
 
-          const handlePageHide = () => {
-            pipRoot.unmount();
-            window.focus();
-          };
+        const pipDiv = pipWindow.document.createElement('div');
+        pipDiv.setAttribute('id', 'pip-root');
+        pipWindow.document.body.append(pipDiv);
+        const pipRoot = ReactDOM.createRoot(pipWindow.document.getElementById('pip-root'));
 
-          pipWindow.addEventListener('pagehide', handlePageHide);
+        const handlePageHide = () => {
+          pipWindowRef.current = null;
+          pipRoot.unmount();
+        };
 
-          const style = document.createElement('style');
-          style.textContent = cssRules.toString();
-          pipWindow.document.head.appendChild(style);
+        pipWindow.addEventListener('pagehide', handlePageHide);
 
-          const normalize = document.createElement('link');
-          normalize.rel = 'stylesheet';
-          normalize.type = 'text/css';
-          normalize.href = 'stylesheets/normalize.css';
-          pipWindow.document.head.appendChild(normalize);
+        const style = document.createElement('style');
+        style.textContent = cssRules.toString();
+        pipWindow.document.head.appendChild(style);
 
-          const icons = document.createElement('link');
-          icons.rel = 'stylesheet';
-          icons.type = 'text/css';
-          icons.href = 'stylesheets/bbb-icons.css';
-          pipWindow.document.head.appendChild(icons);
+        const normalize = document.createElement('link');
+        normalize.rel = 'stylesheet';
+        normalize.type = 'text/css';
+        normalize.href = 'stylesheets/normalize.css';
+        pipWindow.document.head.appendChild(normalize);
 
-          const fonts = document.createElement('link');
-          fonts.rel = 'stylesheet';
-          fonts.type = 'text/css';
-          fonts.href = 'stylesheets/bbb-icons.css';
-          pipWindow.document.head.appendChild(fonts);
+        const icons = document.createElement('link');
+        icons.rel = 'stylesheet';
+        icons.type = 'text/css';
+        icons.href = 'stylesheets/bbb-icons.css';
+        pipWindow.document.head.appendChild(icons);
 
-          pipRoot.render(
-            <Pip
-              pluginApi={pluginApi}
-              pipWindow={pipWindow}
-            />,
-          );
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error(error);
-        }
-      } else if (!document.hidden) {
-        pipRootRef.current?.unmount();
+        const fonts = document.createElement('link');
+        fonts.rel = 'stylesheet';
+        fonts.type = 'text/css';
+        fonts.href = 'stylesheets/bbb-icons.css';
+        pipWindow.document.head.appendChild(fonts);
+
+        pipRoot.render(
+          <Pip
+            pluginApi={pluginApi}
+            pipWindow={pipWindow}
+          />,
+        );
+
+        return true;
+      }
+
+      return false;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // eslint-disable-next-line no-console
+        startPipWindow().then((started) => { if (started) console.info('PiP window started by visibility change'); }).catch(console.warn);
+      } else {
         pipWindowRef.current?.close();
       }
     };
 
-    document.addEventListener('visibilitychange', handler);
+    const handleEnterPip = () => {
+      // eslint-disable-next-line no-console
+      startPipWindow().then((started) => { if (started) console.info('PiP window started by PiP action'); }).catch(console.warn);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // @ts-expect-error This media action may not be supported by all major browsers.
+    navigator.mediaSession.setActionHandler('enterpictureinpicture', handleEnterPip);
 
     return () => {
-      document.removeEventListener('visibilitychange', handler);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+      // @ts-expect-error This media action may not be supported by all major browsers.
+      navigator.mediaSession.setActionHandler('enterpictureinpicture', null);
     };
   }, []);
 
@@ -354,7 +375,7 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
     if (!isPipSupported || !pipActive) return undefined;
 
     function handleVisibilityChange() {
-      setShowFocusWarning(!document.hidden);
+      setShowFocusWarning(!document.hidden && !amISharingWebcam && !joinedVoice);
     }
 
     function handleFocus() {
@@ -368,7 +389,7 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('click', handleFocus, { capture: true });
     };
-  }, [pipActive]);
+  }, [pipActive, amISharingWebcam, joinedVoice]);
 
   React.useEffect(() => {
     if (!isPipSupported || !pipActive) return undefined;
