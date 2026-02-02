@@ -232,6 +232,15 @@ const cssRules = css`
     overflow: hidden;
     max-width: 80%;
   }
+
+  @keyframes skeleton-slide {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .shimmer {
+    animation: skeleton-slide 1.5s ease-in-out infinite;
+  }
 `;
 
 export default cssRules;

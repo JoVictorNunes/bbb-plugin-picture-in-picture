@@ -52,6 +52,8 @@ export function LayoutProvider({
   }, [swappedFromProps]);
 
   React.useEffect(() => {
+    // Take undefined states into account in order to block UI rendering
+    // until we know there are webcams/screenshare or not.
     if (hasCameras == null || hasScreenshare == null) return undefined;
 
     const handleResize = () => {

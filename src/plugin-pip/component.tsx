@@ -21,8 +21,6 @@ function PluginPip({ pluginApi, pipWindow }: PluginPipProps): React.ReactNode {
   const { data: webcams } = useVideoStreams(pluginApi);
   const { data: screenshare } = useScreenshare(pluginApi);
 
-  // Take undefined states into account in order to block UI rendering
-  // until we know there are webcams/screenshare or not.
   const presenter = currentUser?.presenter;
   const moderator = currentUser?.role && currentUser.role === 'MODERATOR';
   const hasWebcams = webcams?.user_camera && Boolean(webcams?.user_camera.length);

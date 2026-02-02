@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { useVideoStreams } from './hooks';
 import VideoItem from './video-item';
-import Loader from '../ui/loader';
+import Skeleton from '../ui/skeleton';
 import { range } from './utils';
 import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
@@ -66,6 +66,7 @@ const calculateOptimalGrid = (
 const findOptimalGrid = (
   gridRect: { width: number; height: number } | null,
   numItems: number,
+  gutter: number,
 ) => {
   if (numItems < 1) {
     return {
@@ -85,7 +86,7 @@ const findOptimalGrid = (
       const testGrid = calculateOptimalGrid(
         canvasWidth,
         canvasHeight,
-        6,
+        gutter,
         ASPECT_RATIO,
         numItems,
         col,
@@ -129,6 +130,7 @@ function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode
   const { cameras: camerasRect } = useLayoutContext();
   const pipWindow = usePipWindow();
   const camerasRef = React.useRef<HTMLDivElement>(null);
+  const webcamsRef = React.useRef<HTMLDivElement>(null);
 
   const {
     data: videoStreamsData,
@@ -199,33 +201,19 @@ function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode
   const paddingBlock = camerasRef.current ? parseInt(pipWindow.getComputedStyle(camerasRef.current)
     .getPropertyValue('padding-block'), 10) : 8;
 
+  const gridGutter = webcamsRef.current ? parseInt(window.getComputedStyle(webcamsRef.current)
+    .getPropertyValue('grid-row-gap'), 10) : 6;
+
   const optimalGrid = React.useMemo(() => findOptimalGrid(
     {
       width: camerasRect.width - (paddingInline * 2),
       height: camerasRect.height - (paddingBlock * 2),
     },
-    videos.length,
+    videos.length || 4,
+    gridGutter,
   ), [camerasRect, videos.length, paddingInline, paddingBlock]);
 
-  if (loading && !videos.length) {
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: camerasRect.x,
-          top: camerasRect.y,
-          width: camerasRect.width,
-          height: camerasRect.height,
-          display: 'grid',
-          placeItems: 'center',
-        }}
-      >
-        <Loader />
-      </div>
-    );
-  }
-
-  if (!videos.length) {
+  if (!videos.length && !loading) {
     return null;
   }
 
@@ -250,8 +238,8 @@ function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode
         placeItems: 'center',
       }}
     >
-      <div id="plugin-pip-webcams" className="webcams" style={style}>
-        {videos.map((video) => (
+      <div id="plugin-pip-webcams" className="webcams" style={style} ref={webcamsRef}>
+        {loading && !videos.length ? Array.from({ length: 4 }).map(() => <Skeleton height="unset" />) : videos.map((video) => (
           <VideoItem
             key={video.streamId}
             streamId={video.streamId}
