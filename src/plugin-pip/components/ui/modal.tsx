@@ -146,7 +146,7 @@ export function Modal({
     border: 'none',
     padding: '8px',
     cursor: 'pointer',
-    borderRadius: '8px',
+    borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -253,18 +253,15 @@ export function ModalButton({
     primary: {
       backgroundColor: isHovered && !disabled ? '#2563eb' : '#3b82f6',
       color: '#ffffff',
-      boxShadow: isHovered && !disabled ? '0 4px 12px rgba(59, 130, 246, 0.4)' : '0 2px 8px rgba(59, 130, 246, 0.2)',
     },
     secondary: {
       backgroundColor: isHovered && !disabled ? '#f3f4f6' : '#ffffff',
       color: '#374151',
       border: '1px solid #e5e7eb',
-      boxShadow: 'none',
     },
     danger: {
       backgroundColor: isHovered && !disabled ? '#dc2626' : '#ef4444',
       color: '#ffffff',
-      boxShadow: isHovered && !disabled ? '0 4px 12px rgba(239, 68, 68, 0.4)' : '0 2px 8px rgba(239, 68, 68, 0.2)',
     },
   };
 

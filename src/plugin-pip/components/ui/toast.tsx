@@ -131,20 +131,21 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   const closeButtonStyles: React.CSSProperties = {
     background: 'none',
     border: 'none',
+    borderRadius: '50%',
     color: '#fff',
-    fontSize: '18px',
+    fontSize: '14px',
     cursor: 'pointer',
     padding: '0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '20px',
-    height: '20px',
+    width: '16px',
+    height: '16px',
     opacity: isHovering ? 1 : 0.8,
     transition: 'opacity 0.2s',
     position: 'absolute',
-    right: 0,
-    top: 0,
+    right: '2px',
+    top: '2px',
   };
 
   return (

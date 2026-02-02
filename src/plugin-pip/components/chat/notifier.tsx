@@ -129,7 +129,7 @@ function ChatNotifier({ pluginApi }: ChatNotifierProps): React.ReactNode {
   React.useEffect(() => {
     if (!chatMessageStream?.chat_message_stream) return;
     chatMessageStream.chat_message_stream.forEach((msg) => {
-      showToast(<ChatMessageToast message={msg} />, 'default', 20000);
+      showToast(<ChatMessageToast message={msg} />, 'default', 10000);
     });
   }, [chatMessageStream, showToast]);
 

@@ -52,9 +52,9 @@ export function LayoutProvider({
   }, [swappedFromProps]);
 
   React.useEffect(() => {
-    const handleResize = () => {
-      if (hasCameras == null || hasScreenshare == null) return;
+    if (hasCameras == null || hasScreenshare == null) return undefined;
 
+    const handleResize = () => {
       const width = pipWindow.innerWidth;
       const height = pipWindow.innerHeight;
 

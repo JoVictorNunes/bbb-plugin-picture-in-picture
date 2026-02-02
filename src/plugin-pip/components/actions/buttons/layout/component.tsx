@@ -11,16 +11,21 @@ function LayoutButtonComponent() {
 
   return (
     <Tooltip content="Swap layout">
-      <button
-        className={className.join(' ')}
-        type="button"
-        onClick={swap}
-      >
-        <span className="sr-only">
-          Swap layout
-        </span>
-        <i className="icon-bbb-refresh" />
-      </button>
+      {({ children, styles, ...props }) => (
+        <button
+          {...props}
+          className={className.join(' ')}
+          type="button"
+          onClick={swap}
+          style={styles}
+        >
+          <span className="sr-only">
+            Swap layout
+          </span>
+          <i className="icon-bbb-refresh" />
+          {children}
+        </button>
+      )}
     </Tooltip>
   );
 }

@@ -139,7 +139,7 @@ const cssRules = css`
     position: relative;
   }
 
-  .media-btn:disabled {
+  button:disabled {
     cursor: not-allowed;
   }
 
@@ -147,9 +147,9 @@ const cssRules = css`
     background-color: rgba(255, 255, 255, 0.1);
   }
 
-  .media-btn:focus {
+  button:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #ffffff;
+    box-shadow: 0 0 0 2px #ffffff !important;
   }
 
   .badge {

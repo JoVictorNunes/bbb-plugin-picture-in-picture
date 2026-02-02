@@ -1,8 +1,19 @@
 import * as React from 'react';
 
+interface TooltipRenderProps {
+  onFocus: () => void;
+  onBlur: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  styles: React.CSSProperties;
+  children: React.ReactNode;
+}
+
+type RenderChildren = React.ReactNode | ((props: TooltipRenderProps) => React.ReactNode)
+
 interface TooltipProps {
   content: React.ReactNode;
-  children: React.ReactNode;
+  children: RenderChildren;
   position?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
 }
@@ -23,6 +34,20 @@ export default function Tooltip({
   };
 
   const handleMouseLeave = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setVisible(false);
+  };
+
+  const handleFocus = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setVisible(true);
+  };
+
+  const handleBlur = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
@@ -119,20 +144,37 @@ export default function Tooltip({
 
   const containerStyles: React.CSSProperties = {
     position: 'relative',
-    display: 'inline-block',
   };
+
+  const contentElement = (
+    <div style={getTooltipStyles()}>
+      {content}
+      <div style={getArrowStyles()} />
+    </div>
+  );
+
+  if (typeof children === 'function') {
+    const element = children({
+      children: contentElement,
+      onFocus: handleFocus,
+      onBlur: handleBlur,
+      onMouseEnter: handleMouseEnter,
+      onMouseLeave: handleMouseLeave,
+      styles: containerStyles,
+    });
+    return element;
+  }
 
   return (
     <div
       style={containerStyles}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
     >
       {children}
-      <div style={getTooltipStyles()}>
-        {content}
-        <div style={getArrowStyles()} />
-      </div>
+      {contentElement}
     </div>
   );
 }

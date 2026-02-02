@@ -270,27 +270,35 @@ function RaisedHandsButtonComponent(
       align="center"
     >
       {({
-        disabled, onClick, onMouseEnter, onMouseLeave, ref,
+        disabled, onClick, ref,
       }) => (
         <Tooltip content={`${raisedHandCount} raised hands`}>
-          <button
-            className="media-btn"
-            type="button"
-            ref={ref}
-            {...{
-              disabled,
-              onClick,
-              onMouseEnter,
-              onMouseLeave,
-            }}
-          >
-            <i className="icon-bbb-hand" />
-            <div className="badge">
-              <span>
-                {raisedHandCount}
-              </span>
-            </div>
-          </button>
+          {({
+            children, styles, onBlur, onFocus, onMouseEnter, onMouseLeave,
+          }) => (
+            <button
+              className="media-btn"
+              type="button"
+              ref={ref}
+              style={styles}
+              {...{
+                disabled,
+                onClick,
+                onMouseEnter,
+                onMouseLeave,
+                onBlur,
+                onFocus,
+              }}
+            >
+              <i className="icon-bbb-hand" />
+              <div className="badge">
+                <span>
+                  {raisedHandCount}
+                </span>
+              </div>
+              {children}
+            </button>
+          )}
         </Tooltip>
       )}
     </Popover>

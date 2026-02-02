@@ -23,19 +23,24 @@ function WebcamButtonComponent({ pluginApi }: WebcamButtonComponentProps) {
 
   return (
     <Tooltip content={amISharing ? 'Stop sharing webcams' : 'You\'re not sharing webcam'}>
-      <button
-        className="media-btn"
-        type="button"
-        onClick={() => {
-          if (amISharing) exitVideo();
-        }}
-        disabled={!amISharing}
-      >
-        <span className="sr-only">
-          Stop webcams
-        </span>
-        <i className={`icon-bbb-${amISharing ? 'video' : 'video_off'}`} />
-      </button>
+      {({ children, styles, ...props }) => (
+        <button
+          {...props}
+          className="media-btn"
+          type="button"
+          style={styles}
+          onClick={() => {
+            if (amISharing) exitVideo();
+          }}
+          disabled={!amISharing}
+        >
+          <span className="sr-only">
+            Stop webcams
+          </span>
+          <i className={`icon-bbb-${amISharing ? 'video' : 'video_off'}`} />
+          {children}
+        </button>
+      )}
     </Tooltip>
   );
 }
