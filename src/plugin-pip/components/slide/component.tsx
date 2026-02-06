@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { PluginApi, PresentationWhiteboardUiDataNames } from 'bigbluebutton-html-plugin-sdk';
 import { useLayoutContext } from '../contexts/layout';
+import { useReactiveRef } from '../../../common/hooks';
+import { usePipWindow } from '../contexts/pip-window';
 
 interface SlideComponentProps {
   pluginApi: PluginApi;
@@ -10,6 +12,8 @@ interface SlideComponentProps {
 function SlideComponent({ pluginApi, hasScreenshare }: SlideComponentProps): React.ReactNode {
   const [image, setImage] = React.useState<string | null>(null);
   const { screenshare: screenshareRect } = useLayoutContext();
+  const slideRef = useReactiveRef<HTMLDivElement>(null);
+  const pipWindow = usePipWindow();
 
   React.useEffect(() => {
     const update = async () => {
@@ -36,7 +40,14 @@ function SlideComponent({ pluginApi, hasScreenshare }: SlideComponentProps): Rea
 
   if (!image || hasScreenshare) return null;
 
-  const imgWidth = Math.min(screenshareRect.height, screenshareRect.width);
+  const paddingInline = slideRef.current ? parseInt(pipWindow.getComputedStyle(slideRef.current)
+    .getPropertyValue('padding-inline'), 10) : 8;
+  const paddingBlock = slideRef.current ? parseInt(pipWindow.getComputedStyle(slideRef.current)
+    .getPropertyValue('padding-block'), 10) : 8;
+  const imgWidth = Math.min(
+    screenshareRect.height - (paddingBlock * 2),
+    screenshareRect.width - (paddingInline * 2),
+  );
 
   return (
     <div

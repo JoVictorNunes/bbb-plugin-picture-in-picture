@@ -1,3 +1,4 @@
+import { useMemo, useRef, useState } from 'react';
 import { createIntl, createIntlCache } from 'react-intl';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 
@@ -26,4 +27,26 @@ export const useI18n = (pluginApi: PluginApi) => {
     intl,
     localeMessagesLoading,
   };
+};
+
+const CURRENT_FIELD = 'current';
+
+export const useReactiveRef = <T = unknown>(initialValue: T | null) => {
+  const [, setCurrent] = useState<T | null>(null);
+  const ref = useRef<T | null>(initialValue);
+
+  const proxy = useMemo(
+    () => new Proxy(ref, {
+      set(target, field, newValue, receiver) {
+        const success = Reflect.set(target, field, newValue, receiver);
+        if (field === CURRENT_FIELD) {
+          setCurrent(newValue);
+        }
+        return success;
+      },
+    }),
+    [],
+  );
+
+  return proxy;
 };
