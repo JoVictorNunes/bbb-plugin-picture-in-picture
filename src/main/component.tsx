@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import * as React from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { ActionButtonDropdownOption, BbbPluginSdk, FloatingWindow } from 'bigbluebutton-html-plugin-sdk';
@@ -45,6 +46,8 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   const { data: currentUser } = pluginApi.useCurrentUser();
   const { joined: joinedVoice } = useCurrentUserVoice(pluginApi) || {};
   const amISharingWebcam = Boolean(currentUser?.cameras?.length);
+  const amISharingMediaRef = React.useRef(joinedVoice || amISharingWebcam);
+  amISharingMediaRef.current = joinedVoice || amISharingWebcam;
 
   if (isPipSupported) {
     const activateLabel = intl?.formatMessage(intlMessages.activate) || 'Activate PiP Window';
@@ -129,16 +132,24 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // eslint-disable-next-line no-console
-        startPipWindow().then((started) => { if (started) console.info('PiP window started by visibility change'); }).catch(console.warn);
+        startPipWindow().then((started) => {
+          if (started) console.debug('PiP window started by visibility change');
+        }).catch((e) => {
+          setShowFocusWarning(!amISharingMediaRef.current);
+          console.warn(e);
+        });
       } else {
         pipWindowRef.current?.close();
       }
     };
 
     const handleEnterPip = () => {
-      // eslint-disable-next-line no-console
-      startPipWindow().then((started) => { if (started) console.info('PiP window started by PiP action'); }).catch(console.warn);
+      startPipWindow().then((started) => {
+        if (started) {
+          setShowFocusWarning(false);
+          console.debug('PiP window started by PiP action');
+        }
+      }).catch(console.warn);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -157,22 +168,16 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   React.useEffect(() => {
     if (!isPipSupported || !pipActive) return undefined;
 
-    function handleVisibilityChange() {
-      setShowFocusWarning(!document.hidden && !amISharingWebcam && !joinedVoice);
-    }
-
     function handleFocus() {
       setShowFocusWarning(false);
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('click', handleFocus, { capture: true });
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('click', handleFocus, { capture: true });
     };
-  }, [pipActive, amISharingWebcam, joinedVoice]);
+  }, [pipActive]);
 
   React.useEffect(() => {
     if (!isPipSupported || !pipActive) return undefined;

@@ -239,7 +239,7 @@ function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode
       }}
     >
       <div id="plugin-pip-webcams" className="webcams" style={style} ref={webcamsRef}>
-        {loading && !videos.length ? Array.from({ length: 4 }).map(() => <Skeleton height="unset" />) : videos.map((video) => (
+        {loading && !videos.length ? Array.from({ length: 4 }).map((_e, i) => i).map((i) => <Skeleton height="unset" key={i} />) : videos.map((video) => (
           <VideoItem
             key={video.streamId}
             streamId={video.streamId}
