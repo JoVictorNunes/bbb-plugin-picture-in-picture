@@ -26,16 +26,17 @@ const intlMessages = defineMessages({
 
 interface MainComponentProps {
   pluginUuid: string;
+  active: boolean;
 }
 
-function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
+function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactNode {
   BbbPluginSdk.initialize(pluginUuid);
   const pluginApi = BbbPluginSdk.getPluginApi(pluginUuid);
   const { intl } = useI18n(pluginApi);
-  const pipActiveRef = React.useRef(JSON.parse(localStorage.getItem('pip-plugin-active')));
+  const pipActiveRef = React.useRef(active ?? true);
   const pipWindowRef = React.useRef<Window | null>(null);
   const hasMediaRef = React.useRef(false);
-  const [pipActive, setPipActive] = React.useState<boolean>(JSON.parse(localStorage.getItem('pip-plugin-active')));
+  const [pipActive, setPipActive] = React.useState<boolean>(active ?? true);
   const [showFocusWarning, setShowFocusWarning] = React.useState(false);
   const { data: webcams } = useVideoStreams(pluginApi);
   const { data: screenshare } = useScreenshare(pluginApi);
