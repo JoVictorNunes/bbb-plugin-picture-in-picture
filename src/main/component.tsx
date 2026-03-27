@@ -5,8 +5,7 @@ import { ActionButtonDropdownOption, BbbPluginSdk, FloatingWindow } from 'bigblu
 import { defineMessages } from 'react-intl';
 import { useI18n } from '../common/hooks';
 import Pip from '../plugin-pip/component';
-import { useVideoStreams } from '../plugin-pip/components/cameras/hooks';
-import { useScreenshare } from '../plugin-pip/components/screenshare/hooks';
+import { useVideoStreams, useScreenshare } from '../plugin-pip/components/streams/hooks';
 import FocusWarning from '../plugin-pip/components/warning/component';
 import { useCurrentUserVoice } from '../plugin-pip/components/actions/hooks';
 import styles from './stylesheet';

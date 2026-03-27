@@ -1,14 +1,12 @@
 import * as React from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { IntlShape } from 'react-intl';
-import CamerasComponent from './components/cameras/component';
+import CamerasComponent from './components/streams/component';
 import ActionsComponent from './components/actions/component';
-import ScreenshareComponent from './components/screenshare/component';
 import ChatNotifier from './components/chat/notifier';
 import RaisedHandNotifier from './components/raised-hands/component';
 import { ToastProvider } from './components/ui/toast';
-import { useVideoStreams } from './components/cameras/hooks';
-import { useScreenshare } from './components/screenshare/hooks';
+import { useVideoStreams, useScreenshare } from './components/streams/hooks';
 import { PipWindowProvider } from './components/contexts/pip-window';
 import { LayoutProvider } from './components/contexts/layout';
 
@@ -28,11 +26,6 @@ function PluginPip({ intl, pluginApi, pipWindow }: PluginPipProps): React.ReactN
   const hasWebcams = webcams?.user_camera && Boolean(webcams?.user_camera.length);
   const hasScreenshare = screenshare?.screenshare && Boolean(screenshare?.screenshare.length);
 
-  const containerClassName = ['container'];
-
-  if (hasWebcams) containerClassName.push('has-webcams');
-  if (hasScreenshare) containerClassName.push('has-screenshare');
-
   return (
     <PipWindowProvider pipWindow={pipWindow}>
       <LayoutProvider
@@ -42,9 +35,8 @@ function PluginPip({ intl, pluginApi, pipWindow }: PluginPipProps): React.ReactN
         moderator={moderator}
       >
         <ToastProvider intl={intl}>
-          <div className={containerClassName.join(' ')}>
+          <div className="container">
             <div className="video">
-              <ScreenshareComponent pluginApi={pluginApi} />
               <CamerasComponent pluginApi={pluginApi} />
             </div>
             <ActionsComponent pluginApi={pluginApi} pipWindow={pipWindow} intl={intl} />

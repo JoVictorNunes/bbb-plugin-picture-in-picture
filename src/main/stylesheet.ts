@@ -186,20 +186,17 @@ const cssRules = css`
     padding: 0.5rem;
   }
 
-  .screenshare {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem;
-
-    video {
-      height: 100%;
-      width: auto;
-    }
+  .pip-screenshare-focused {
+    grid-column: span 2;
+    grid-row: span 2;
   }
 
-  .container:not(.has-webcams) .screenshare video {
-    object-position: center;
+  .pip-screenshare-item video {
+    object-fit: contain;
+  }
+
+  .pip-video-container.pip-screenshare-item {
+    background-color: #111;
   }
 
   @keyframes pulse {
