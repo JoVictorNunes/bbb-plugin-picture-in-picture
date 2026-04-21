@@ -7,7 +7,7 @@ import Skeleton from '../ui/skeleton';
 import { range } from './utils';
 import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
-import { useReactiveRef } from '../../../common/hooks';
+import { useRerenderRef } from '../../../common/hooks';
 
 const createVideoSelector = (streamId: string) => `.video-provider_list .videoContainer[data-stream="${streamId}"] video`;
 
@@ -130,8 +130,8 @@ function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode
   const [lastUpdate, setLastUpdate] = React.useState(Date.now());
   const { cameras: camerasRect } = useLayoutContext();
   const pipWindow = usePipWindow();
-  const camerasRef = useReactiveRef<HTMLDivElement>(null);
-  const webcamsRef = useReactiveRef<HTMLDivElement>(null);
+  const camerasRef = useRerenderRef<HTMLDivElement>(null);
+  const webcamsRef = useRerenderRef<HTMLDivElement>(null);
 
   const {
     data: videoStreamsData,

@@ -31,7 +31,12 @@ export const useI18n = (pluginApi: PluginApi) => {
 
 const CURRENT_FIELD = 'current';
 
-export const useReactiveRef = <T = unknown>(initialValue: T | null) => {
+/**
+ * This hook returns a proxied ref. Whenever the "current" field of the ref gets updated
+ * the hook forces a new render of the components using it so we can grab its latest value
+ * at render time.
+ */
+export const useRerenderRef = <T = unknown>(initialValue: T | null) => {
   const [, setCurrent] = useState<T | null>(null);
   const ref = useRef<T | null>(initialValue);
 

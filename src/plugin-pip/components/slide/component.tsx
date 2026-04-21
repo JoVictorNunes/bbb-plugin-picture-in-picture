@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { PluginApi, PresentationWhiteboardUiDataNames } from 'bigbluebutton-html-plugin-sdk';
 import { useLayoutContext } from '../contexts/layout';
-import { useReactiveRef } from '../../../common/hooks';
+import { useRerenderRef } from '../../../common/hooks';
 import { usePipWindow } from '../contexts/pip-window';
 
 interface SlideComponentProps {
@@ -12,7 +12,7 @@ interface SlideComponentProps {
 function SlideComponent({ pluginApi, hasScreenshare }: SlideComponentProps): React.ReactNode {
   const [image, setImage] = React.useState<string | null>(null);
   const { screenshare: screenshareRect } = useLayoutContext();
-  const slideRef = useReactiveRef<HTMLDivElement>(null);
+  const slideRef = useRerenderRef<HTMLDivElement>(null);
   const pipWindow = usePipWindow();
 
   React.useEffect(() => {
