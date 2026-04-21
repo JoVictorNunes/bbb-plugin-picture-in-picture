@@ -242,7 +242,7 @@ const cssRules = css`
     animation: skeleton-slide 1.5s ease-in-out infinite;
   }
 
-  .chat-message-content {
+  .pip-chat-message-content {
     a:link {
       color: #ffffff;
     }

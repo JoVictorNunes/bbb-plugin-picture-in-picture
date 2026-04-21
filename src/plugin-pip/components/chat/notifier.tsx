@@ -105,7 +105,7 @@ function ChatMessageToast({ intl, message }: ChatMessageToastProps): React.React
         )}
       </div>
       {/* eslint-disable-next-line react/no-danger */}
-      <div className="chat-message-content" style={messageStyles} dangerouslySetInnerHTML={{ __html: message.messageAsHtml }} />
+      <div className="pip-chat-message-content" style={messageStyles} dangerouslySetInnerHTML={{ __html: message.messageAsHtml }} />
     </div>
   );
 }
