@@ -61,6 +61,7 @@ function SlideComponent({ pluginApi, hasScreenshare }: SlideComponentProps): Rea
         placeItems: 'center',
         padding: '0.5rem',
       }}
+      ref={slideRef}
     >
       <img src={image} alt="current slide" style={{ width: `${imgWidth}px` }} />
     </div>
