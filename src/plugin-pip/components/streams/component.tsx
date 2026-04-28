@@ -358,7 +358,7 @@ function StreamsComponent({
             if (contentFocused) className.push('pip-content-focused');
             return (
               <div key={item.streamId} className={className.join(' ')}>
-                <Skeleton height="unset" />
+                <Skeleton width="100%" height="100%" borderRadius={0} />
               </div>
             );
           }

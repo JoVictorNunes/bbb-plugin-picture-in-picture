@@ -39,9 +39,11 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
   const [showFocusWarning, setShowFocusWarning] = React.useState(false);
   const { data: webcams } = useVideoStreams(pluginApi);
   const { data: screenshare } = useScreenshare(pluginApi);
+  const { data: presentation } = pluginApi.useCurrentPresentation() ?? {};
   const hasWebcams = Boolean(webcams?.user_camera?.length);
   const hasScreenshare = Boolean(screenshare?.screenshare?.length);
-  const hasMedia = hasScreenshare || hasWebcams;
+  const hasPresentation = Boolean(presentation);
+  const hasMedia = hasScreenshare || hasWebcams || hasPresentation;
   hasMediaRef.current = hasMedia;
   const { data: currentUser } = pluginApi.useCurrentUser();
   const { joined: joinedVoice } = useCurrentUserVoice(pluginApi) || {};
