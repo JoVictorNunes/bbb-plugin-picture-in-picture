@@ -135,7 +135,9 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
         startPipWindow().then((started) => {
           if (started) console.debug('PiP window started by visibility change');
         }).catch((e) => {
-          setShowFocusWarning(!amISharingMediaRef.current);
+          // @ts-expect-error This web API may not be supported by all major browsers.
+          // PiP may have been started by PiP action.
+          setShowFocusWarning(!documentPictureInPicture.window);
           console.warn(e);
         });
       } else {
@@ -149,7 +151,12 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
           setShowFocusWarning(false);
           console.debug('PiP window started by PiP action');
         }
-      }).catch(console.warn);
+      }).catch((e) => {
+        // @ts-expect-error This web API may not be supported by all major browsers.
+        // PiP may have been started by visibility change.
+        setShowFocusWarning(!documentPictureInPicture.window);
+        console.warn(e);
+      });
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
