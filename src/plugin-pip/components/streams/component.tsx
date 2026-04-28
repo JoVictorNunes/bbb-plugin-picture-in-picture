@@ -8,6 +8,7 @@ import Skeleton from '../ui/skeleton';
 import { range } from './utils';
 import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
+import { useRerenderRef } from '../../../common/hooks';
 
 const createVideoSelector = (streamId: string) => `.video-provider_list .videoContainer[data-stream="${streamId}"] video`;
 
@@ -162,8 +163,8 @@ function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode
   const [lastUpdate, setLastUpdate] = React.useState(Date.now());
   const { content: contentRect, screenshareFocused } = useLayoutContext();
   const pipWindow = usePipWindow();
-  const camerasRef = React.useRef<HTMLDivElement>(null);
-  const webcamsRef = React.useRef<HTMLDivElement>(null);
+  const camerasRef = useRerenderRef<HTMLDivElement>(null);
+  const webcamsRef = useRerenderRef<HTMLDivElement>(null);
 
   const {
     data: videoStreamsData,

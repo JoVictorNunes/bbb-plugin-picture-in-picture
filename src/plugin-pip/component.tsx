@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { IntlShape } from 'react-intl';
-import CamerasComponent from './components/streams/component';
+import StreamsComponent from './components/streams/component';
 import ActionsComponent from './components/actions/component';
+import SlideComponent from './components/slide/component';
 import ChatNotifier from './components/chat/notifier';
 import RaisedHandNotifier from './components/raised-hands/component';
 import { ToastProvider } from './components/ui/toast';
@@ -20,24 +21,28 @@ function PluginPip({ intl, pluginApi, pipWindow }: PluginPipProps): React.ReactN
   const { data: currentUser } = pluginApi.useCurrentUser();
   const { data: webcams } = useVideoStreams(pluginApi);
   const { data: screenshare } = useScreenshare(pluginApi);
+  const { data: presentation } = pluginApi.useCurrentPresentation() ?? {};
 
   const presenter = currentUser?.presenter;
   const moderator = currentUser?.role && currentUser.role === 'MODERATOR';
   const hasWebcams = webcams?.user_camera && Boolean(webcams?.user_camera.length);
-  const hasScreenshare = screenshare?.screenshare && Boolean(screenshare?.screenshare.length);
+  const hasScreenshare = screenshare?.screenshare && Boolean(screenshare?.screenshare?.length);
+  const hasPresentation = presentation && Boolean(presentation);
 
   return (
     <PipWindowProvider pipWindow={pipWindow}>
       <LayoutProvider
         hasCameras={hasWebcams}
         hasScreenshare={hasScreenshare}
+        hasPresentation={hasPresentation}
         presenter={presenter}
         moderator={moderator}
       >
         <ToastProvider intl={intl}>
           <div className="container">
             <div className="video">
-              <CamerasComponent pluginApi={pluginApi} />
+              <SlideComponent pluginApi={pluginApi} hasScreenshare={hasScreenshare} />
+              <StreamsComponent pluginApi={pluginApi} />
             </div>
             <ActionsComponent pluginApi={pluginApi} pipWindow={pipWindow} intl={intl} />
           </div>

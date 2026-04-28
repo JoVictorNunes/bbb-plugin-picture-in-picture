@@ -30,25 +30,30 @@ interface LayoutProviderProps {
   children: React.ReactNode;
   hasScreenshare?: boolean;
   hasCameras?: boolean;
+  hasPresentation?: boolean;
   presenter?: boolean;
   moderator?: boolean;
 }
 
 export function LayoutProvider({
-  children, hasScreenshare, hasCameras, presenter, moderator,
+  children, hasScreenshare, hasCameras, hasPresentation, presenter, moderator,
 }: LayoutProviderProps) {
   const pipWindow = usePipWindow();
   const [screenshareFocused, setScreenshareFocused] = React.useState<boolean | null>(null);
   const [layout, setLayout] = React.useState<Pick<LayoutContext, 'content' | 'actions'> | null>(null);
 
-  const loading = [hasCameras, hasScreenshare, presenter, moderator].some((v) => v == null);
-  const initialFocused = (presenter || moderator) && hasScreenshare && hasCameras;
+  const loading = [
+    hasCameras, hasScreenshare, hasPresentation, presenter, moderator,
+  ].some((v) => v == null);
+  const swappedFromProps = (presenter || moderator)
+    && (hasScreenshare || hasPresentation)
+    && hasCameras;
 
   React.useEffect(() => {
-    if (!loading && screenshareFocused === null && typeof initialFocused === 'boolean') {
-      setScreenshareFocused(initialFocused);
+    if (!loading && screenshareFocused === null && typeof swappedFromProps === 'boolean') {
+      setScreenshareFocused(swappedFromProps);
     }
-  }, [initialFocused]);
+  }, [swappedFromProps]);
 
   React.useEffect(() => {
     if (typeof hasScreenshare === 'boolean' && !hasScreenshare) {
@@ -95,7 +100,7 @@ export function LayoutProvider({
     return () => {
       pipWindow.removeEventListener('resize', handleResize);
     };
-  }, [pipWindow, hasScreenshare, hasCameras]);
+  }, [pipWindow, hasScreenshare, hasCameras, hasPresentation]);
 
   const value = React.useMemo(
     () => (layout ? {
