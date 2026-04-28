@@ -186,7 +186,7 @@ const cssRules = css`
     padding: 0.5rem;
   }
 
-  .pip-screenshare-focused {
+  .pip-content-focused {
     grid-column: span 2;
     grid-row: span 2;
   }
@@ -195,8 +195,15 @@ const cssRules = css`
     object-fit: contain;
   }
 
-  .pip-video-container.pip-screenshare-item {
+  .pip-video-container.pip-screenshare-item,
+  .pip-video-container.pip-slide-item {
     background-color: #111;
+  }
+
+  .pip-slide-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   @keyframes pulse {

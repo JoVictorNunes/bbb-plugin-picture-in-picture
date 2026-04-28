@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useEffect } from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
-import { useVideoStreams, useScreenshare } from './hooks';
+import { useVideoStreams, useScreenshare, usePresentationSnapshot } from './hooks';
 import WebcamItem from './webcam-item';
 import Video from './video';
 import Skeleton from '../ui/skeleton';
@@ -88,7 +88,7 @@ const findOptimalGrid = (
   gridRect: { width: number; height: number } | null,
   numItems: number,
   gutter: number,
-  screenshareFocused = false,
+  contentFocused = false,
 ) => {
   if (numItems < 1) {
     return {
@@ -103,8 +103,8 @@ const findOptimalGrid = (
   const canvasWidth = gridRect?.width ?? 0;
   const canvasHeight = gridRect?.height ?? 0;
 
-  const effectiveItems = screenshareFocused ? numItems + 3 : numItems;
-  const minColumns = screenshareFocused ? 2 : 1;
+  const effectiveItems = contentFocused ? numItems + 3 : numItems;
+  const minColumns = contentFocused ? 2 : 1;
 
   const newOptimalGrid = range(minColumns, effectiveItems + 1)
     .reduce((currentGrid, col) => {
@@ -151,17 +151,35 @@ interface ScreenshareMedia {
   streamId: string;
 }
 
-type GridMedia = WebcamMedia | ScreenshareMedia;
+interface SlideMedia {
+  type: 'slide';
+  streamId: string;
+  image: string;
+}
+
+interface SlideLoadingMedia {
+  type: 'slide-loading';
+  streamId: string;
+}
+
+type GridMedia = WebcamMedia | ScreenshareMedia | SlideMedia | SlideLoadingMedia;
+
+const SLIDE_STREAM_ID = 'presentation-slide';
+const SLIDE_LOADING_STREAM_ID = 'presentation-slide-loading';
 
 interface StreamsComponentProps {
   pluginApi: PluginApi;
+  hasPresentation?: boolean;
 }
 
-function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode {
+function StreamsComponent({
+  pluginApi,
+  hasPresentation,
+}: StreamsComponentProps): React.ReactNode {
   const [streams, setStreams] = React.useState<GridMedia[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [lastUpdate, setLastUpdate] = React.useState(Date.now());
-  const { content: contentRect, screenshareFocused } = useLayoutContext();
+  const { content: contentRect, contentFocused } = useLayoutContext();
   const pipWindow = usePipWindow();
   const camerasRef = useRerenderRef<HTMLDivElement>(null);
   const webcamsRef = useRerenderRef<HTMLDivElement>(null);
@@ -173,6 +191,13 @@ function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode
   const {
     data: screenshareData,
   } = useScreenshare(pluginApi);
+
+  const isSharing = Boolean(screenshareData?.screenshare[0]?.stream);
+  const slideEnabled = Boolean(hasPresentation) && !isSharing;
+  const { image: slideImage, isLoading: slideLoading } = usePresentationSnapshot(
+    pluginApi,
+    slideEnabled,
+  );
 
   useEffect(() => {
     async function update() {
@@ -208,7 +233,6 @@ function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode
         return indexA - indexB;
       });
 
-      const isSharing = Boolean(screenshareData?.screenshare[0]?.stream);
       if (isSharing) {
         const srcObject = await pollForScreenshareSrc();
         if (srcObject) {
@@ -221,6 +245,23 @@ function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode
         }
       }
 
+      if (slideImage) {
+        const slideItem: SlideMedia = {
+          type: 'slide',
+          streamId: SLIDE_STREAM_ID,
+          image: slideImage,
+        };
+        return [slideItem, ...webcams];
+      }
+
+      if (slideEnabled && slideLoading) {
+        const slideLoadingItem: SlideLoadingMedia = {
+          type: 'slide-loading',
+          streamId: SLIDE_LOADING_STREAM_ID,
+        };
+        return [slideLoadingItem, ...webcams];
+      }
+
       return webcams;
     }
 
@@ -230,7 +271,7 @@ function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode
       .finally(() => {
         setLoading(false);
       });
-  }, [videoStreamsData, screenshareData, lastUpdate]);
+  }, [videoStreamsData, screenshareData, slideImage, slideLoading, slideEnabled, lastUpdate]);
 
   useEffect(() => {
     const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
@@ -264,8 +305,8 @@ function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode
     },
     streams.length || 4,
     gridGutter,
-    screenshareFocused,
-  ), [contentRect, streams.length, paddingInline, paddingBlock, screenshareFocused]);
+    contentFocused,
+  ), [contentRect, streams.length, paddingInline, paddingBlock, contentFocused]);
 
   if (!streams.length && !loading) {
     return null;
@@ -296,10 +337,28 @@ function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode
         {loading && !streams.length ? Array.from({ length: 4 }).map((_e, i) => i).map((i) => <Skeleton height="unset" key={i} />) : streams.map((item) => {
           if (item.type === 'screenshare') {
             const className = ['pip-video-container', 'pip-screenshare-item'];
-            if (screenshareFocused) className.push('pip-screenshare-focused');
+            if (contentFocused) className.push('pip-content-focused');
             return (
               <div key={item.streamId} className={className.join(' ')}>
                 <Video srcObject={item.srcObject} talking={false} />
+              </div>
+            );
+          }
+          if (item.type === 'slide') {
+            const className = ['pip-video-container', 'pip-slide-item'];
+            if (contentFocused) className.push('pip-content-focused');
+            return (
+              <div key={item.streamId} className={className.join(' ')}>
+                <img src={item.image} alt="current slide" />
+              </div>
+            );
+          }
+          if (item.type === 'slide-loading') {
+            const className = ['pip-video-container', 'pip-slide-item'];
+            if (contentFocused) className.push('pip-content-focused');
+            return (
+              <div key={item.streamId} className={className.join(' ')}>
+                <Skeleton height="unset" />
               </div>
             );
           }

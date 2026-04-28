@@ -4,13 +4,13 @@ import Tooltip from '../../../ui/tooltip';
 import { useLayoutContext } from '../../../contexts/layout';
 
 export const intlMessages = defineMessages({
-  focusScreenshare: {
-    id: 'plugin.layout.button.focusScreenshare',
-    defaultMessage: 'Focus screenshare',
+  focusContent: {
+    id: 'plugin.layout.button.focusContent',
+    defaultMessage: 'Focus content',
   },
-  unfocusScreenshare: {
-    id: 'plugin.layout.button.unfocusScreenshare',
-    defaultMessage: 'Unfocus screenshare',
+  unfocusContent: {
+    id: 'plugin.layout.button.unfocusContent',
+    defaultMessage: 'Unfocus content',
   },
 });
 
@@ -19,13 +19,13 @@ interface LayoutButtonComponentProps {
 }
 
 function LayoutButtonComponent({ intl }: LayoutButtonComponentProps) {
-  const { toggleScreenshareFocus, canFocusScreenshare, screenshareFocused } = useLayoutContext();
+  const { toggleContentFocus, canFocusContent, contentFocused } = useLayoutContext();
 
-  if (!canFocusScreenshare) return null;
+  if (!canFocusContent) return null;
 
   const className = ['media-btn'];
   const label = intl.formatMessage(
-    screenshareFocused ? intlMessages.unfocusScreenshare : intlMessages.focusScreenshare,
+    contentFocused ? intlMessages.unfocusContent : intlMessages.focusContent,
   );
 
   return (
@@ -35,7 +35,7 @@ function LayoutButtonComponent({ intl }: LayoutButtonComponentProps) {
           {...props}
           className={className.join(' ')}
           type="button"
-          onClick={toggleScreenshareFocus}
+          onClick={toggleContentFocus}
           style={styles}
         >
           <span className="sr-only">

@@ -3,7 +3,6 @@ import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { IntlShape } from 'react-intl';
 import StreamsComponent from './components/streams/component';
 import ActionsComponent from './components/actions/component';
-import SlideComponent from './components/slide/component';
 import ChatNotifier from './components/chat/notifier';
 import RaisedHandNotifier from './components/raised-hands/component';
 import { ToastProvider } from './components/ui/toast';
@@ -41,8 +40,7 @@ function PluginPip({ intl, pluginApi, pipWindow }: PluginPipProps): React.ReactN
         <ToastProvider intl={intl}>
           <div className="container">
             <div className="video">
-              <SlideComponent pluginApi={pluginApi} hasScreenshare={hasScreenshare} />
-              <StreamsComponent pluginApi={pluginApi} />
+              <StreamsComponent pluginApi={pluginApi} hasPresentation={hasPresentation} />
             </div>
             <ActionsComponent pluginApi={pluginApi} pipWindow={pipWindow} intl={intl} />
           </div>

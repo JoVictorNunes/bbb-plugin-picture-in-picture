@@ -11,9 +11,9 @@ interface Rect {
 interface LayoutContext {
   content: Rect;
   actions: Rect;
-  screenshareFocused: boolean;
-  toggleScreenshareFocus: () => void;
-  canFocusScreenshare: boolean;
+  contentFocused: boolean;
+  toggleContentFocus: () => void;
+  canFocusContent: boolean;
 }
 
 const LayoutContext = React.createContext<LayoutContext>(null);
@@ -39,31 +39,32 @@ export function LayoutProvider({
   children, hasScreenshare, hasCameras, hasPresentation, presenter, moderator,
 }: LayoutProviderProps) {
   const pipWindow = usePipWindow();
-  const [screenshareFocused, setScreenshareFocused] = React.useState<boolean | null>(null);
+  const [contentFocused, setContentFocused] = React.useState<boolean | null>(null);
   const [layout, setLayout] = React.useState<Pick<LayoutContext, 'content' | 'actions'> | null>(null);
 
   const loading = [
     hasCameras, hasScreenshare, hasPresentation, presenter, moderator,
   ].some((v) => v == null);
-  const swappedFromProps = (presenter || moderator)
+  const initialFocused = (presenter || moderator)
     && (hasScreenshare || hasPresentation)
     && hasCameras;
 
   React.useEffect(() => {
-    if (!loading && screenshareFocused === null && typeof swappedFromProps === 'boolean') {
-      setScreenshareFocused(swappedFromProps);
+    if (!loading && contentFocused === null && typeof initialFocused === 'boolean') {
+      setContentFocused(initialFocused);
     }
-  }, [swappedFromProps]);
+  }, [loading, contentFocused, initialFocused]);
 
   React.useEffect(() => {
-    if (typeof hasScreenshare === 'boolean' && !hasScreenshare) {
-      setScreenshareFocused(false);
+    if (typeof hasScreenshare === 'boolean'
+      && typeof hasPresentation === 'boolean'
+      && !hasScreenshare
+      && !hasPresentation) {
+      setContentFocused(false);
     }
-  }, [hasScreenshare]);
+  }, [hasScreenshare, hasPresentation]);
 
   React.useEffect(() => {
-    // Take undefined states into account in order to block UI rendering
-    // until we know there are webcams/screenshare or not.
     if (hasCameras == null || hasScreenshare == null) return undefined;
 
     const handleResize = () => {
@@ -100,16 +101,16 @@ export function LayoutProvider({
     return () => {
       pipWindow.removeEventListener('resize', handleResize);
     };
-  }, [pipWindow, hasScreenshare, hasCameras, hasPresentation]);
+  }, [pipWindow, hasScreenshare, hasCameras]);
 
-  const value = React.useMemo(
+  const value = React.useMemo<LayoutContext | null>(
     () => (layout ? {
       ...layout,
-      screenshareFocused,
-      canFocusScreenshare: hasCameras && hasScreenshare,
-      toggleScreenshareFocus: () => setScreenshareFocused((v) => !v),
+      contentFocused: Boolean(contentFocused),
+      canFocusContent: Boolean(hasCameras && (hasScreenshare || hasPresentation)),
+      toggleContentFocus: () => setContentFocused((v) => !v),
     } : null),
-    [layout, screenshareFocused, hasCameras, hasScreenshare],
+    [layout, contentFocused, hasCameras, hasScreenshare, hasPresentation],
   );
 
   return value ? (
