@@ -152,11 +152,11 @@ interface ScreenshareMedia {
 
 type GridMedia = WebcamMedia | ScreenshareMedia;
 
-interface CamerasComponentProps {
+interface StreamsComponentProps {
   pluginApi: PluginApi;
 }
 
-function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode {
+function StreamsComponent({ pluginApi }: StreamsComponentProps): React.ReactNode {
   const [streams, setStreams] = React.useState<GridMedia[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [lastUpdate, setLastUpdate] = React.useState(Date.now());
@@ -317,4 +317,4 @@ function CamerasComponent({ pluginApi }: CamerasComponentProps): React.ReactNode
   );
 }
 
-export default CamerasComponent;
+export default StreamsComponent;
