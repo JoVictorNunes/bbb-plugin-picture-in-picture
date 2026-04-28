@@ -45,13 +45,13 @@ export function LayoutProvider({
   const initialFocused = (presenter || moderator) && hasScreenshare && hasCameras;
 
   React.useEffect(() => {
-    if (!loading) {
+    if (!loading && screenshareFocused === null && typeof initialFocused === 'boolean') {
       setScreenshareFocused(initialFocused);
     }
   }, [initialFocused]);
 
   React.useEffect(() => {
-    if (!hasScreenshare) {
+    if (typeof hasScreenshare === 'boolean' && !hasScreenshare) {
       setScreenshareFocused(false);
     }
   }, [hasScreenshare]);
