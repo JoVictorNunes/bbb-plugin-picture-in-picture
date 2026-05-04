@@ -9,12 +9,11 @@ interface Rect {
 }
 
 interface LayoutContext {
-  cameras: Rect;
-  screenshare: Rect;
+  content: Rect;
   actions: Rect;
-  swapped: boolean;
-  swap: () => void;
-  canSwap: boolean;
+  contentFocused: boolean;
+  toggleContentFocus: () => void;
+  canFocusContent: boolean;
 }
 
 const LayoutContext = React.createContext<LayoutContext>(null);
@@ -40,25 +39,32 @@ export function LayoutProvider({
   children, hasScreenshare, hasCameras, hasPresentation, presenter, moderator,
 }: LayoutProviderProps) {
   const pipWindow = usePipWindow();
-  const [swapped, setSwapped] = React.useState<boolean | null>(null);
-  const [layout, setLayout] = React.useState<Omit<LayoutContext, 'swapped' | 'swap'> | null>(null);
+  const [contentFocused, setContentFocused] = React.useState<boolean | null>(null);
+  const [layout, setLayout] = React.useState<Pick<LayoutContext, 'content' | 'actions'> | null>(null);
 
   const loading = [
     hasCameras, hasScreenshare, hasPresentation, presenter, moderator,
   ].some((v) => v == null);
-  const swappedFromProps = (presenter || moderator)
+  const initialFocused = (presenter || moderator)
     && (hasScreenshare || hasPresentation)
     && hasCameras;
 
   React.useEffect(() => {
-    if (!loading) {
-      setSwapped(swappedFromProps);
+    if (!loading && contentFocused === null && typeof initialFocused === 'boolean') {
+      setContentFocused(initialFocused);
     }
-  }, [swappedFromProps]);
+  }, [loading, contentFocused, initialFocused]);
 
   React.useEffect(() => {
-    // Take undefined states into account in order to block UI rendering
-    // until we know there are webcams/screenshare or not.
+    if (typeof hasScreenshare === 'boolean'
+      && typeof hasPresentation === 'boolean'
+      && !hasScreenshare
+      && !hasPresentation) {
+      setContentFocused(false);
+    }
+  }, [hasScreenshare, hasPresentation]);
+
+  React.useEffect(() => {
     if (hasCameras == null || hasScreenshare == null) return undefined;
 
     const handleResize = () => {
@@ -75,56 +81,17 @@ export function LayoutProvider({
 
       const availableHeight = height - actionsHeight;
 
-      let screenshareRect: Rect = {
-        x: 0, y: 0, width: 0, height: 0,
+      const contentRect: Rect = {
+        x: 0,
+        y: 0,
+        width,
+        height: availableHeight,
       };
-      let camerasRect: Rect = {
-        x: 0, y: 0, width: 0, height: 0,
-      };
-
-      const hasMedia = hasScreenshare || hasPresentation;
-
-      if (hasMedia && hasCameras) {
-        screenshareRect = {
-          x: 0,
-          y: 0,
-          width: width * 0.7,
-          height: availableHeight,
-        };
-        camerasRect = {
-          x: width * 0.7,
-          y: 0,
-          width: width * 0.3,
-          height: availableHeight,
-        };
-      } else if (hasMedia) {
-        screenshareRect = {
-          x: 0,
-          y: 0,
-          width,
-          height: availableHeight,
-        };
-      } else if (hasCameras) {
-        camerasRect = {
-          x: 0,
-          y: 0,
-          width,
-          height: availableHeight,
-        };
-      }
-
-      if (swapped && hasCameras && hasMedia) {
-        // Swap screenshare and cameras for presenter view
-        const temp = screenshareRect;
-        screenshareRect = camerasRect;
-        camerasRect = temp;
-      }
 
       setLayout((prev) => ({
         ...prev,
         actions: actionsRect,
-        screenshare: screenshareRect,
-        cameras: camerasRect,
+        content: contentRect,
       }));
     };
 
@@ -134,16 +101,16 @@ export function LayoutProvider({
     return () => {
       pipWindow.removeEventListener('resize', handleResize);
     };
-  }, [pipWindow, hasScreenshare, hasCameras, hasPresentation, swapped]);
+  }, [pipWindow, hasScreenshare, hasCameras]);
 
-  const value = React.useMemo(
+  const value = React.useMemo<LayoutContext | null>(
     () => (layout ? {
       ...layout,
-      swapped,
-      canSwap: hasCameras && (hasScreenshare || hasPresentation),
-      swap: () => setSwapped((v) => !v),
+      contentFocused: Boolean(contentFocused),
+      canFocusContent: Boolean(hasCameras && (hasScreenshare || hasPresentation)),
+      toggleContentFocus: () => setContentFocused((v) => !v),
     } : null),
-    [layout, swapped, hasCameras, hasScreenshare, hasPresentation],
+    [layout, contentFocused, hasCameras, hasScreenshare, hasPresentation],
   );
 
   return value ? (

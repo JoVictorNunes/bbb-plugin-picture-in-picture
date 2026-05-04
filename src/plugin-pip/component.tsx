@@ -1,15 +1,12 @@
 import * as React from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { IntlShape } from 'react-intl';
-import CamerasComponent from './components/cameras/component';
+import StreamsComponent from './components/streams/component';
 import ActionsComponent from './components/actions/component';
-import ScreenshareComponent from './components/screenshare/component';
-import SlideComponent from './components/slide/component';
 import ChatNotifier from './components/chat/notifier';
 import RaisedHandNotifier from './components/raised-hands/component';
 import { ToastProvider } from './components/ui/toast';
-import { useVideoStreams } from './components/cameras/hooks';
-import { useScreenshare } from './components/screenshare/hooks';
+import { useVideoStreams, useScreenshare } from './components/streams/hooks';
 import { PipWindowProvider } from './components/contexts/pip-window';
 import { LayoutProvider } from './components/contexts/layout';
 
@@ -31,11 +28,6 @@ function PluginPip({ intl, pluginApi, pipWindow }: PluginPipProps): React.ReactN
   const hasScreenshare = screenshare?.screenshare && Boolean(screenshare?.screenshare?.length);
   const hasPresentation = presentation && Boolean(presentation);
 
-  const containerClassName = ['container'];
-
-  if (hasWebcams) containerClassName.push('has-webcams');
-  if (hasScreenshare) containerClassName.push('has-screenshare');
-
   return (
     <PipWindowProvider pipWindow={pipWindow}>
       <LayoutProvider
@@ -46,11 +38,9 @@ function PluginPip({ intl, pluginApi, pipWindow }: PluginPipProps): React.ReactN
         moderator={moderator}
       >
         <ToastProvider intl={intl}>
-          <div className={containerClassName.join(' ')}>
+          <div className="container">
             <div className="video">
-              <ScreenshareComponent pluginApi={pluginApi} />
-              <SlideComponent pluginApi={pluginApi} hasScreenshare={hasScreenshare} />
-              <CamerasComponent pluginApi={pluginApi} />
+              <StreamsComponent pluginApi={pluginApi} hasPresentation={hasPresentation} />
             </div>
             <ActionsComponent pluginApi={pluginApi} pipWindow={pipWindow} intl={intl} />
           </div>

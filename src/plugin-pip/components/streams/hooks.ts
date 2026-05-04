@@ -1,0 +1,71 @@
+import * as React from 'react';
+import { PluginApi, PresentationWhiteboardUiDataNames } from 'bigbluebutton-html-plugin-sdk';
+import {
+  type VideoStreamsSubscriptionResult,
+  SCREENSHARE,
+  ScreenshareSubscriptionResult,
+  VIDEO_STREAMS_SUBSCRIPTION,
+} from './queries';
+
+export const useVideoStreams = (pluginApi: PluginApi) => {
+  const response = pluginApi.useCustomSubscription!<VideoStreamsSubscriptionResult>(
+    VIDEO_STREAMS_SUBSCRIPTION,
+  );
+  return response;
+};
+
+export const useScreenshare = (pluginApi: PluginApi) => {
+  const response = pluginApi.useCustomSubscription!<ScreenshareSubscriptionResult>(
+    SCREENSHARE,
+  );
+  return response;
+};
+
+const SLIDE_SNAPSHOT_INTERVAL_MS = 5000;
+
+interface PresentationSnapshot {
+  image: string | null;
+  isLoading: boolean;
+}
+
+export const usePresentationSnapshot = (
+  pluginApi: PluginApi,
+  enabled: boolean,
+): PresentationSnapshot => {
+  const [image, setImage] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setImage(null);
+      setIsLoading(false);
+      return undefined;
+    }
+
+    setIsLoading(true);
+
+    const update = () => {
+      const getter = pluginApi?.getUiData;
+      if (!getter) {
+        setIsLoading(false);
+        return;
+      }
+      getter(PresentationWhiteboardUiDataNames.CURRENT_PAGE_SNAPSHOT).then((data) => {
+        setImage(data?.base64Png ?? null);
+        setIsLoading(false);
+      }).catch(() => {
+        setIsLoading(false);
+        // eslint-disable-next-line no-console
+        console.warn('Couldn\'t refresh snapshot of current slide');
+      });
+    };
+
+    update();
+    const intervalId = setInterval(update, SLIDE_SNAPSHOT_INTERVAL_MS);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [pluginApi, enabled]);
+
+  return { image, isLoading };
+};

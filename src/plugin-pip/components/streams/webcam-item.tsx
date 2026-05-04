@@ -1,16 +1,16 @@
 import * as React from 'react';
 import Video from './video';
 
-interface VideoItemProps {
+interface WebcamItemProps {
   streamId: string;
   srcObject: MediaStream;
   userTalking: boolean;
   userName: string;
 }
 
-function VideoItem({
+function WebcamItem({
   streamId, srcObject, userTalking, userName,
-}: VideoItemProps) {
+}: WebcamItemProps) {
   const [squeezed, setSqueezed] = React.useState(false);
   const observerRef = React.useRef<ResizeObserver | null>(null);
 
@@ -39,4 +39,4 @@ function VideoItem({
   );
 }
 
-export default VideoItem;
+export default WebcamItem;

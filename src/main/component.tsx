@@ -1,11 +1,11 @@
+/* eslint-disable no-console */
 import * as React from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { ActionButtonDropdownOption, BbbPluginSdk, FloatingWindow } from 'bigbluebutton-html-plugin-sdk';
 import { defineMessages } from 'react-intl';
 import { useI18n } from '../common/hooks';
 import Pip from '../plugin-pip/component';
-import { useVideoStreams } from '../plugin-pip/components/cameras/hooks';
-import { useScreenshare } from '../plugin-pip/components/screenshare/hooks';
+import { useVideoStreams, useScreenshare } from '../plugin-pip/components/streams/hooks';
 import FocusWarning from '../plugin-pip/components/warning/component';
 import { useCurrentUserVoice } from '../plugin-pip/components/actions/hooks';
 import styles from './stylesheet';
@@ -25,26 +25,31 @@ const intlMessages = defineMessages({
 
 interface MainComponentProps {
   pluginUuid: string;
+  active: boolean;
 }
 
-function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
+function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactNode {
   BbbPluginSdk.initialize(pluginUuid);
   const pluginApi = BbbPluginSdk.getPluginApi(pluginUuid);
   const { intl } = useI18n(pluginApi);
-  const pipActiveRef = React.useRef(JSON.parse(localStorage.getItem('pip-plugin-active')));
+  const pipActiveRef = React.useRef(active ?? true);
   const pipWindowRef = React.useRef<Window | null>(null);
   const hasMediaRef = React.useRef(false);
-  const [pipActive, setPipActive] = React.useState<boolean>(JSON.parse(localStorage.getItem('pip-plugin-active')));
+  const [pipActive, setPipActive] = React.useState<boolean>(active ?? true);
   const [showFocusWarning, setShowFocusWarning] = React.useState(false);
   const { data: webcams } = useVideoStreams(pluginApi);
   const { data: screenshare } = useScreenshare(pluginApi);
+  const { data: presentation } = pluginApi.useCurrentPresentation() ?? {};
   const hasWebcams = Boolean(webcams?.user_camera?.length);
   const hasScreenshare = Boolean(screenshare?.screenshare?.length);
-  const hasMedia = hasScreenshare || hasWebcams;
+  const hasPresentation = Boolean(presentation);
+  const hasMedia = hasScreenshare || hasWebcams || hasPresentation;
   hasMediaRef.current = hasMedia;
   const { data: currentUser } = pluginApi.useCurrentUser();
   const { joined: joinedVoice } = useCurrentUserVoice(pluginApi) || {};
   const amISharingWebcam = Boolean(currentUser?.cameras?.length);
+  const amISharingMediaRef = React.useRef(joinedVoice || amISharingWebcam);
+  amISharingMediaRef.current = joinedVoice || amISharingWebcam;
 
   if (isPipSupported) {
     const activateLabel = intl?.formatMessage(intlMessages.activate) || 'Activate PiP Window';
@@ -129,16 +134,31 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // eslint-disable-next-line no-console
-        startPipWindow().then((started) => { if (started) console.info('PiP window started by visibility change'); }).catch(console.warn);
+        startPipWindow().then((started) => {
+          if (started) console.debug('PiP window started by visibility change');
+        }).catch((e) => {
+          // @ts-expect-error This web API may not be supported by all major browsers.
+          // PiP may have been started by PiP action.
+          setShowFocusWarning(!documentPictureInPicture.window);
+          console.warn(e);
+        });
       } else {
         pipWindowRef.current?.close();
       }
     };
 
     const handleEnterPip = () => {
-      // eslint-disable-next-line no-console
-      startPipWindow().then((started) => { if (started) console.info('PiP window started by PiP action'); }).catch(console.warn);
+      startPipWindow().then((started) => {
+        if (started) {
+          setShowFocusWarning(false);
+          console.debug('PiP window started by PiP action');
+        }
+      }).catch((e) => {
+        // @ts-expect-error This web API may not be supported by all major browsers.
+        // PiP may have been started by visibility change.
+        setShowFocusWarning(!documentPictureInPicture.window);
+        console.warn(e);
+      });
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -157,22 +177,16 @@ function MainComponent({ pluginUuid }: MainComponentProps): React.ReactNode {
   React.useEffect(() => {
     if (!isPipSupported || !pipActive) return undefined;
 
-    function handleVisibilityChange() {
-      setShowFocusWarning(!document.hidden && !amISharingWebcam && !joinedVoice);
-    }
-
     function handleFocus() {
       setShowFocusWarning(false);
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('click', handleFocus, { capture: true });
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('click', handleFocus, { capture: true });
     };
-  }, [pipActive, amISharingWebcam, joinedVoice]);
+  }, [pipActive]);
 
   React.useEffect(() => {
     if (!isPipSupported || !pipActive) return undefined;

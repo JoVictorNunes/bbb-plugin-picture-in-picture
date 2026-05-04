@@ -2,7 +2,7 @@ import * as React from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { IntlShape, defineMessages } from 'react-intl';
 import { useExitVideo } from '../../hooks';
-import { VIDEO_STREAMS_SUBSCRIPTION, type VideoStreamsSubscriptionResult } from '../../../cameras/queries';
+import { VIDEO_STREAMS_SUBSCRIPTION, type VideoStreamsSubscriptionResult } from '../../../streams/queries';
 import Tooltip from '../../../ui/tooltip';
 
 export const intlMessages = defineMessages({

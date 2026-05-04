@@ -4,9 +4,13 @@ import Tooltip from '../../../ui/tooltip';
 import { useLayoutContext } from '../../../contexts/layout';
 
 export const intlMessages = defineMessages({
-  layoutSwap: {
-    id: 'plugin.layout.button.swap',
-    defaultMessage: 'Swap layout',
+  focusContent: {
+    id: 'plugin.layout.button.focusContent',
+    defaultMessage: 'Focus content',
+  },
+  unfocusContent: {
+    id: 'plugin.layout.button.unfocusContent',
+    defaultMessage: 'Unfocus content',
   },
 });
 
@@ -15,12 +19,14 @@ interface LayoutButtonComponentProps {
 }
 
 function LayoutButtonComponent({ intl }: LayoutButtonComponentProps) {
-  const { swap, canSwap } = useLayoutContext();
+  const { toggleContentFocus, canFocusContent, contentFocused } = useLayoutContext();
 
-  if (!canSwap) return null;
+  if (!canFocusContent) return null;
 
   const className = ['media-btn'];
-  const label = intl.formatMessage(intlMessages.layoutSwap);
+  const label = intl.formatMessage(
+    contentFocused ? intlMessages.unfocusContent : intlMessages.focusContent,
+  );
 
   return (
     <Tooltip content={label}>
@@ -29,7 +35,7 @@ function LayoutButtonComponent({ intl }: LayoutButtonComponentProps) {
           {...props}
           className={className.join(' ')}
           type="button"
-          onClick={swap}
+          onClick={toggleContentFocus}
           style={styles}
         >
           <span className="sr-only">

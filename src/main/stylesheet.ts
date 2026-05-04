@@ -186,20 +186,24 @@ const cssRules = css`
     padding: 0.5rem;
   }
 
-  .screenshare {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem;
-
-    video {
-      height: 100%;
-      width: auto;
-    }
+  .pip-content-focused {
+    grid-column: span 2;
+    grid-row: span 2;
   }
 
-  .container:not(.has-webcams) .screenshare video {
-    object-position: center;
+  .pip-screenshare-item video {
+    object-fit: contain;
+  }
+
+  .pip-video-container.pip-screenshare-item,
+  .pip-video-container.pip-slide-item {
+    background-color: #111;
+  }
+
+  .pip-slide-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   @keyframes pulse {
