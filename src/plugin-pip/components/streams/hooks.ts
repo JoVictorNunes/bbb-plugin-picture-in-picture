@@ -5,6 +5,8 @@ import {
   SCREENSHARE,
   ScreenshareSubscriptionResult,
   VIDEO_STREAMS_SUBSCRIPTION,
+  USERS_SUBSCRIPTION,
+  type UsersSubscriptionResult,
 } from './queries';
 
 export const useVideoStreams = (pluginApi: PluginApi) => {
@@ -13,6 +15,10 @@ export const useVideoStreams = (pluginApi: PluginApi) => {
   );
   return response;
 };
+
+export const useUsers = (pluginApi: PluginApi) => pluginApi.useCustomSubscription!<
+  UsersSubscriptionResult
+>(USERS_SUBSCRIPTION);
 
 export const useScreenshare = (pluginApi: PluginApi) => {
   const response = pluginApi.useCustomSubscription!<ScreenshareSubscriptionResult>(

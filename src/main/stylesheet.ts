@@ -177,7 +177,7 @@ const cssRules = css`
   .pip-video-container {
     position: relative;
     display: flex;
-    background-color: #000;
+    background-color: #111;
     border-radius: 8px;
     overflow: hidden;
   }
@@ -204,6 +204,54 @@ const cssRules = css`
     width: 100%;
     height: 100%;
     object-fit: contain;
+  }
+
+  .pip-video-container.pip-avatar-item {
+    background-color: #303030;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #111;
+  }
+
+  .pip-avatar-item.talking {
+    border-color: #3b82f6;
+  }
+
+  .pip-avatar-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .pip-avatar-circle {
+    border-radius: 5px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    aspect-ratio: 1;
+    width: 40%;
+    max-width: 4rem;
+    min-width: 1.5rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    user-select: none;
+  }
+
+  @keyframes avatar-pulse {
+    0% {
+      box-shadow: 0 0 0 0 var(--avatar-color);
+    }
+    70% {
+      box-shadow: 0 0 0 0.5625rem transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  .pip-avatar-item.talking .pip-avatar-circle,
+  .pip-avatar-item.talking img {
+    animation: avatar-pulse 1s ease-in infinite;
   }
 
   @keyframes pulse {

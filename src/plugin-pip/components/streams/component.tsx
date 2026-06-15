@@ -1,8 +1,11 @@
 import * as React from 'react';
 import { useEffect } from 'react';
 import { PluginApi } from 'bigbluebutton-html-plugin-sdk';
-import { useVideoStreams, useScreenshare, usePresentationSnapshot } from './hooks';
+import {
+  useVideoStreams, useScreenshare, usePresentationSnapshot, useUsers,
+} from './hooks';
 import WebcamItem from './webcam-item';
+import AvatarItem from './avatar-item';
 import Video from './video';
 import Skeleton from '../ui/skeleton';
 import { range } from './utils';
@@ -162,7 +165,22 @@ interface SlideLoadingMedia {
   streamId: string;
 }
 
-type GridMedia = WebcamMedia | ScreenshareMedia | SlideMedia | SlideLoadingMedia;
+interface AvatarMedia {
+  type: 'avatar';
+  streamId: string;
+  userId: string;
+  userName: string;
+  avatar: string;
+  color: string;
+  userTalking: boolean;
+}
+
+type GridMedia =
+  | WebcamMedia
+  | ScreenshareMedia
+  | SlideMedia
+  | SlideLoadingMedia
+  | AvatarMedia;
 
 const SLIDE_STREAM_ID = 'presentation-slide';
 const SLIDE_LOADING_STREAM_ID = 'presentation-slide-loading';
@@ -191,6 +209,10 @@ function StreamsComponent({
   const {
     data: screenshareData,
   } = useScreenshare(pluginApi);
+
+  const {
+    data: usersData,
+  } = useUsers(pluginApi);
 
   const isSharing = Boolean(screenshareData?.screenshare[0]?.stream);
   const slideEnabled = Boolean(hasPresentation) && !isSharing;
@@ -233,6 +255,19 @@ function StreamsComponent({
         return indexA - indexB;
       });
 
+      const avatars: GridMedia[] = (usersData?.user || [])
+        .map((user) => ({
+          type: 'avatar' as const,
+          streamId: `avatar-${user.userId}`,
+          userId: user.userId,
+          userName: user.name,
+          avatar: user.avatar,
+          color: user.color,
+          userTalking: user.voice?.talking ?? false,
+        }));
+
+      const tiles: GridMedia[] = [...webcams, ...avatars];
+
       if (isSharing) {
         const srcObject = await pollForScreenshareSrc();
         if (srcObject) {
@@ -241,7 +276,7 @@ function StreamsComponent({
             streamId: screenshareData.screenshare[0].stream,
             srcObject,
           };
-          return [screenshareItem, ...webcams];
+          return [screenshareItem, ...tiles];
         }
       }
 
@@ -251,7 +286,7 @@ function StreamsComponent({
           streamId: SLIDE_STREAM_ID,
           image: slideImage,
         };
-        return [slideItem, ...webcams];
+        return [slideItem, ...tiles];
       }
 
       if (slideEnabled && slideLoading) {
@@ -259,10 +294,10 @@ function StreamsComponent({
           type: 'slide-loading',
           streamId: SLIDE_LOADING_STREAM_ID,
         };
-        return [slideLoadingItem, ...webcams];
+        return [slideLoadingItem, ...tiles];
       }
 
-      return webcams;
+      return tiles;
     }
 
     setLoading(true);
@@ -271,7 +306,8 @@ function StreamsComponent({
       .finally(() => {
         setLoading(false);
       });
-  }, [videoStreamsData, screenshareData, slideImage, slideLoading, slideEnabled, lastUpdate]);
+  }, [videoStreamsData, screenshareData, usersData, slideImage,
+    slideLoading, slideEnabled, lastUpdate]);
 
   useEffect(() => {
     const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
@@ -360,6 +396,18 @@ function StreamsComponent({
               <div key={item.streamId} className={className.join(' ')}>
                 <Skeleton width="100%" height="100%" borderRadius={0} />
               </div>
+            );
+          }
+          if (item.type === 'avatar') {
+            return (
+              <AvatarItem
+                key={item.streamId}
+                userId={item.userId}
+                userName={item.userName}
+                avatar={item.avatar}
+                color={item.color}
+                userTalking={item.userTalking}
+              />
             );
           }
           return (
