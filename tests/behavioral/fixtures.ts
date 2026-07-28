@@ -8,6 +8,7 @@ import {
   generateSettingsData,
 } from '../core/helpers';
 import { ELEMENT_WAIT_EXTRA_LONG_TIME } from '../core/constants';
+import { installVisibilityOverride } from '../core/tabVisibilityDriver';
 
 export interface MultiUserTestFixtures {
   multiUserTest: {
@@ -47,8 +48,11 @@ export function createMultiUserTest(config: MultiUserTestConfig) {
         permissions: ['clipboard-read', 'clipboard-write', 'camera', 'microphone'],
         viewport: { width: 1280, height: 720 },
       });
+      // Installed before the first navigation so PiP-window tests can background
+      // the moderator's tab. Inert until a test flips the flag.
+      await installVisibilityOverride(modContext);
       const modRawPage = await modContext.newPage();
-      const sample = new Plugin({ browser, context: modContext });
+      const sample = new Plugin({ browser });
       await sample.initModPage(modRawPage, { createParameter });
       const { modPage } = sample;
 
@@ -60,11 +64,13 @@ export function createMultiUserTest(config: MultiUserTestConfig) {
       });
       const attendeeRawPage = await attendeeContext.newPage();
       const attendeePage = new SessionPage({ browser, page: attendeeRawPage });
+      attendeePage.username = 'Attendee';
 
       const joinUrl = getJoinURL({
         meetingID: modPage.meetingId,
         isModerator: false,
         skipSessionDetailsModal: true,
+        fullName: attendeePage.username,
       });
       await attendeeRawPage.goto(joinUrl);
       await attendeeRawPage.waitForSelector('div#layout', { timeout: ELEMENT_WAIT_EXTRA_LONG_TIME });

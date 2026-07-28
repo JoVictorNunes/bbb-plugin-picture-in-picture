@@ -10,9 +10,11 @@
 import { expect } from '@playwright/test';
 import { createMultiUserTest } from './fixtures';
 import { checkPluginAvailability } from '../core/fixtures/pluginBeforeAll';
-import { ELEMENT_WAIT_LONGER_TIME } from '../core/constants';
+import { ELEMENT_WAIT_EXTRA_LONG_TIME, ELEMENT_WAIT_LONGER_TIME } from '../core/constants';
 import { elements as e } from '../elements';
 import { SessionPage } from '../core/sessionPage';
+import { setTabHidden } from '../core/tabVisibilityDriver';
+import { openPipWindow } from '../core/pipWindowHelper';
 
 const PLUGIN_NAME = 'picture-in-picture';
 const ENV_VAR_NAME = 'PICTURE_IN_PICTURE_PLUGIN_URL';
@@ -21,7 +23,6 @@ const { test, setPluginUrl, getPluginUrl } = createMultiUserTest({ envVarName: E
 
 test.beforeAll(checkPluginAvailability({
   pluginName: PLUGIN_NAME,
-  envVarName: ENV_VAR_NAME,
   setPluginUrl,
   getPluginUrl,
 }));
@@ -66,5 +67,31 @@ test.describe('Picture-in-Picture Plugin - Behavioural (multi-user)', () => {
     const modItem = await openPipItem(modPage);
     const modLabel = (await modItem.textContent())?.trim();
     expect(modLabel, 'moderator toggle should remain in its own default state').toBe('Deactivate PiP Window');
+  });
+
+  // ChatNotifier subscribes to the chat stream and raises a toast INSIDE the PiP
+  // window. It skips the current user's own messages
+  // (msg.senderId !== currentUser.userId), so this needs two users: the attendee
+  // sends, the moderator's PiP window must show the toast.
+  test('should surface an incoming chat message as a toast inside the PiP window', async ({ multiUserTest }) => {
+    const { modPage, attendeePage } = multiUserTest;
+    const messageText = `pip-toast-check-${modPage.meetingId}`;
+
+    await modPage.page.waitForSelector(e.whiteboard, { timeout: ELEMENT_WAIT_LONGER_TIME });
+    const pipPage = await openPipWindow(modPage.page.context(), modPage.page);
+
+    await attendeePage.page.waitForSelector(e.whiteboard, { timeout: ELEMENT_WAIT_LONGER_TIME });
+    await attendeePage.sendPublicChatMessage(messageText);
+
+    // The toast auto-dismisses 10s after it appears, but toHaveCount polls
+    // continuously, so a longer budget only helps: it covers a slow graphql
+    // round-trip when several meetings are running in parallel.
+    const toast = pipPage.locator(e.pipChatMessage).filter({ hasText: messageText });
+    await expect(
+      toast,
+      'the moderator PiP window should show a toast for the attendee message',
+    ).toHaveCount(1, { timeout: ELEMENT_WAIT_EXTRA_LONG_TIME * 2 });
+
+    await setTabHidden(modPage.page, false);
   });
 });

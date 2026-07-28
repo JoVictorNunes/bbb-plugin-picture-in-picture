@@ -72,7 +72,11 @@ export class SessionPage {
 
     this.meetingId = await createMeeting(this.initParameters, createParameter);
     const joinUrl = getJoinURL({
-      meetingID: this.meetingId, isModerator, joinParameter, skipSessionDetailsModal,
+      meetingID: this.meetingId,
+      isModerator,
+      joinParameter,
+      skipSessionDetailsModal,
+      fullName: this.username,
     });
     const response = await this.page.goto(joinUrl);
     await expect(response?.ok()).toBeTruthy();
@@ -119,10 +123,6 @@ export class SessionPage {
     return this.page.locator(selector);
   }
 
-  async waitForPluginLogger() {
-    return this.page.waitForEvent('console', (msg) => msg.text().includes('PluginLogger'));
-  }
-
   async hasText(selector: string, text: string, description: string, timeout = ELEMENT_WAIT_TIME) {
     const locator = this.getLocator(selector).first();
     await expect(locator, description).toContainText(text, { timeout });
@@ -131,5 +131,56 @@ export class SessionPage {
   async closeAudioModal() {
     await this.hasElement(e.audioModal, 'should display the audio modal', ELEMENT_WAIT_EXTRA_LONG_TIME);
     await this.page.click(e.closeModal);
+  }
+
+  async waitAndClick(selector: string, timeout = ELEMENT_WAIT_TIME) {
+    await this.page.waitForSelector(selector, { timeout });
+    await this.page.click(selector, { timeout });
+  }
+
+  /**
+   * Share the current user's webcam. Mirrors `Page.shareWebcam` from
+   * bigbluebutton-tests/playwright/core/page.ts: the video preview modal is
+   * skipped when the server settings say so, otherwise it must be confirmed.
+   * Chromium is launched with --use-fake-device-for-media-stream, so the
+   * "camera" is the synthetic rolling-pattern stream.
+   */
+  async shareWebcam(timeout = ELEMENT_WAIT_EXTRA_LONG_TIME) {
+    const {
+      webcamSharingEnabled,
+      skipVideoPreview,
+      skipVideoPreviewOnFirstJoin,
+    } = this.settings || {};
+
+    if (webcamSharingEnabled === false) {
+      throw new Error('Webcam sharing is disabled on this server; cannot share a webcam.');
+    }
+
+    await this.waitAndClick(e.joinVideo);
+
+    const shouldConfirmSharing = !(skipVideoPreview || skipVideoPreviewOnFirstJoin);
+    if (shouldConfirmSharing) {
+      await this.hasElement(e.webcamMirroredVideoPreview, 'should display the webcam video preview', timeout);
+      await this.waitAndClick(e.startSharingWebcam);
+    }
+
+    await this.page.waitForSelector(e.webcamMirroredVideoContainer, { timeout });
+    await this.page.waitForSelector(e.leaveVideo, { timeout });
+    await this.wasRemoved(
+      e.webcamConnecting,
+      'should stop showing the webcam connecting element once connected',
+      timeout,
+    );
+  }
+
+  /** Send a message to the public chat, opening the chat panel if needed. */
+  async sendPublicChatMessage(message: string, timeout = ELEMENT_WAIT_TIME) {
+    const chatBox = this.getLocator(e.chatBox).first();
+    if (!(await chatBox.isVisible())) {
+      await this.waitAndClick(e.chatButton, timeout);
+    }
+    await chatBox.waitFor({ state: 'visible', timeout });
+    await chatBox.fill(message);
+    await this.waitAndClick(e.sendButton, timeout);
   }
 }

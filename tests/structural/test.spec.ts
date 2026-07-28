@@ -42,23 +42,19 @@ test.describe('Picture-in-Picture Plugin - Structural', () => {
   async function setupMeeting(browser: Browser, request: APIRequestContext, testInfo: TestInfo) {
     await checkPluginAvailability({
       pluginName: PLUGIN_NAME,
-      envVarName: ENV_VAR_NAME,
       setPluginUrl,
       getPluginUrl,
     })({ request }, testInfo);
 
-    const resolvedUrl = getPluginUrl();
-    if (!resolvedUrl) return;
-
     const createParameter = encodeCustomParams(
-      `pluginManifests=${JSON.stringify([{ url: resolvedUrl }])}`,
+      `pluginManifests=${JSON.stringify([{ url: getPluginUrl() }])}`,
     );
     sharedContext = await browser.newContext({
       permissions: ['clipboard-read', 'clipboard-write', 'camera', 'microphone'],
       viewport: { width: 1280, height: 720 },
     });
     const page = await sharedContext.newPage();
-    const plugin = new Plugin({ browser, context: sharedContext });
+    const plugin = new Plugin({ browser });
     await plugin.initModPage(page, { createParameter });
     modPage = plugin.modPage;
   }

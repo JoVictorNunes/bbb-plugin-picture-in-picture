@@ -1,11 +1,9 @@
-/* eslint-disable no-console */
 /* eslint-disable import/no-extraneous-dependencies */
 import { TestInfo, APIRequestContext } from '@playwright/test';
 import { secret, server } from '../parameters';
 
 export type SampleBeforeAllConfig = {
   pluginName: string;
-  envVarName: string;
   setPluginUrl: (url: string) => void;
   getPluginUrl?: () => string | undefined;
 };
@@ -28,24 +26,28 @@ export function checkPluginAvailability(config: SampleBeforeAllConfig) {
     const manifestUrlPath = `/plugins/${config.pluginName}/dist/manifest.json`;
     const pluginUrl = `${serverDomain}${manifestUrlPath}`;
 
+    // An unreachable manifest is a hard failure, not a skip. BBB_URL and
+    // BBB_SECRET are set by this point (the checks above throw otherwise), so
+    // the suite was deliberately pointed at a server - silently skipping every
+    // test would report a green run that verified nothing.
     const response = await request.get(pluginUrl);
     if (!response.ok()) {
-      const msg = `Failed to fetch plugin manifest for ${pluginUrl} plugin. returned status ${response.status()}`;
-      console.error(msg);
-      testInfo.skip(
-        true,
-        msg,
+      throw new Error(
+        `Plugin manifest not reachable at ${pluginUrl} (HTTP ${response.status()}), `
+        + `required by "${testInfo.title}". Build and deploy the plugin `
+        + '(npm run build-bundle && npm run publish-plugin:dev), or point the suite at an '
+        + 'already-hosted manifest with PICTURE_IN_PICTURE_PLUGIN_URL.',
       );
-      return;
     }
 
     try {
       await response.json();
-      config.setPluginUrl(pluginUrl);
     } catch (error) {
-      const msg = `Invalid JSON response from plugin manifest for ${testInfo.title} plugin`;
-      console.error(msg, error);
-      testInfo.skip(true, msg);
+      throw new Error(
+        `Plugin manifest at ${pluginUrl} is not valid JSON, required by "${testInfo.title}": ${error}`,
+      );
     }
+
+    config.setPluginUrl(pluginUrl);
   };
 }

@@ -11,11 +11,13 @@ import {
   test, expect, BrowserContext, Browser, APIRequestContext, TestInfo,
 } from '@playwright/test';
 import { checkPluginAvailability } from '../core/fixtures/pluginBeforeAll';
-import { ELEMENT_WAIT_LONGER_TIME } from '../core/constants';
+import { ELEMENT_WAIT_EXTRA_LONG_TIME, ELEMENT_WAIT_LONGER_TIME, LOOP_INTERVAL } from '../core/constants';
 import { elements as e } from '../elements';
 import { SessionPage as ModPage } from '../core/sessionPage';
 import { Plugin } from '../core/plugin';
 import { encodeCustomParams } from '../core/helpers';
+import { installVisibilityOverride, setTabHidden } from '../core/tabVisibilityDriver';
+import { openPipWindow } from '../core/pipWindowHelper';
 
 const PLUGIN_NAME = 'picture-in-picture';
 const ENV_VAR_NAME = 'PICTURE_IN_PICTURE_PLUGIN_URL';
@@ -52,23 +54,22 @@ test.describe('Picture-in-Picture Plugin - Behavioural (single user)', () => {
   async function setupMeeting(browser: Browser, request: APIRequestContext, testInfo: TestInfo) {
     await checkPluginAvailability({
       pluginName: PLUGIN_NAME,
-      envVarName: ENV_VAR_NAME,
       setPluginUrl,
       getPluginUrl,
     })({ request }, testInfo);
 
-    const resolvedUrl = getPluginUrl();
-    if (!resolvedUrl) return;
-
     const createParameter = encodeCustomParams(
-      `pluginManifests=${JSON.stringify([{ url: resolvedUrl }])}`,
+      `pluginManifests=${JSON.stringify([{ url: getPluginUrl() }])}`,
     );
     sharedContext = await browser.newContext({
       permissions: ['clipboard-read', 'clipboard-write', 'camera', 'microphone'],
       viewport: { width: 1280, height: 720 },
     });
+    // Must be installed before the first navigation so the override is in place
+    // by the time the plugin registers its visibilitychange listener.
+    await installVisibilityOverride(sharedContext);
     const page = await sharedContext.newPage();
-    const plugin = new Plugin({ browser, context: sharedContext });
+    const plugin = new Plugin({ browser });
     await plugin.initModPage(page, { createParameter });
     modPage = plugin.modPage;
   }
@@ -132,18 +133,100 @@ test.describe('Picture-in-Picture Plugin - Behavioural (single user)', () => {
     );
   });
 
-  // The plugin renders its camera/screenshare/slide grid INSIDE a
-  // documentPictureInPicture window. That window is only opened by the plugin on
-  // a `visibilitychange` (tab hidden) or a `enterpictureinpicture` mediaSession
-  // action - and requestWindow() requires transient user activation. Neither
-  // trigger is reliably reproducible from headless Playwright: dispatching
-  // visibilitychange does not set document.hidden, and there is no API to fire
-  // the mediaSession action with activation. Empirically the plugin's populated
-  // PiP window (#pip-root > .cameras) is therefore never reachable through a
-  // Playwright-driven path, even though a manually requested Document PiP window
-  // IS surfaced as a second context page. Skipped rather than asserted as a false
-  // pass; drive it manually to verify the in-window grid.
-  test.skip('should render the camera grid inside the PiP window', async () => {
-    // Intentionally empty - see the comment above for why this is skipped.
+  // The plugin renders its grid INSIDE a documentPictureInPicture window, opened
+  // from its `visibilitychange` handler when the tab goes hidden. Headless
+  // Chromium cannot genuinely background a tab, so `installVisibilityOverride`
+  // patches document.hidden and `openPipWindow` fires the event - see
+  // tests/core/tabVisibilityDriver.ts for why the alternatives don't work. The
+  // PiP window shows up as a normal page on the same context.
+  test('should open the PiP window and render the plugin into it', async (): Promise<void> => {
+    await modPage.page.waitForSelector(e.whiteboard, { timeout: ELEMENT_WAIT_LONGER_TIME });
+
+    // The plugin only opens the window while active; make sure it is.
+    if (await readActiveFlag(modPage) === 'false') {
+      const toggle = await openActionsDropdown(modPage);
+      await toggle.click();
+    }
+
+    const pipPage = await openPipWindow(sharedContext, modPage.page);
+
+    expect(pipPage, 'the PiP window should be a separate page from the client').not.toBe(modPage.page);
+    await expect(
+      pipPage.locator(e.pipRoot),
+      'the plugin should mount its React root inside the PiP window',
+    ).toHaveCount(1);
+    await expect(
+      pipPage.locator('.container .video'),
+      'the PiP window should contain the plugin streams container',
+    ).toHaveCount(1);
+    await expect(
+      pipPage.locator(e.pipCameras),
+      'the streams grid should render inside the PiP window',
+    ).toHaveCount(1);
+    await expect(
+      pipPage.locator(e.pipWebcams),
+      'the webcam grid should render inside the PiP window',
+    ).toHaveCount(1);
+
+    // Restoring visibility closes the window again (handleVisibilityChange's
+    // else branch calls pipWindowRef.current?.close()).
+    await setTabHidden(modPage.page, false);
+    await expect
+      .poll(
+        () => sharedContext.pages().length,
+        { timeout: ELEMENT_WAIT_LONGER_TIME, message: 'the PiP window should close when the tab becomes visible again' },
+      )
+      .toBe(1);
+  });
+
+  // Chromium runs with --use-fake-device-for-media-stream, so this shares the
+  // synthetic camera. This is the one path a component test cannot cover: the
+  // plugin reads the MediaStream off a <video> in the CLIENT document
+  // (pollForVideoSrc + createVideoSelector) and re-attaches it to a <video> it
+  // rendered in the PiP document. Asserting currentTime advances there proves
+  // the stream really crossed the document boundary.
+  test('should carry a live webcam stream into the PiP window', async (): Promise<void> => {
+    await modPage.page.waitForSelector(e.whiteboard, { timeout: ELEMENT_WAIT_LONGER_TIME });
+
+    if (await readActiveFlag(modPage) === 'false') {
+      const toggle = await openActionsDropdown(modPage);
+      await toggle.click();
+    }
+
+    await modPage.shareWebcam();
+    await modPage.hasElement(e.webcamVideoItem, 'the client should show the shared webcam', ELEMENT_WAIT_EXTRA_LONG_TIME);
+
+    const pipPage = await openPipWindow(sharedContext, modPage.page);
+
+    const pipVideo = pipPage.locator(e.pipVideo).first();
+    await expect(
+      pipVideo,
+      'the shared webcam should be rendered as a video element inside the PiP window',
+    ).toBeAttached({ timeout: ELEMENT_WAIT_EXTRA_LONG_TIME });
+
+    // The stream is assigned as srcObject, so there is no src attribute to check.
+    const readVideoState = () => pipPage.evaluate((selector) => {
+      const video = document.querySelector<HTMLVideoElement>(selector);
+      if (!video) return null;
+      return { currentTime: video.currentTime, hasSrcObject: Boolean(video.srcObject) };
+    }, e.pipVideo);
+
+    await expect
+      .poll(
+        async () => (await readVideoState())?.hasSrcObject ?? false,
+        { timeout: ELEMENT_WAIT_EXTRA_LONG_TIME, message: 'the PiP video should receive the MediaStream from the client document' },
+      )
+      .toBe(true);
+
+    const before = await readVideoState();
+    await modPage.page.waitForTimeout(LOOP_INTERVAL * 2);
+    const after = await readVideoState();
+
+    expect(
+      after?.currentTime,
+      'the webcam stream should be playing inside the PiP window (currentTime should advance)',
+    ).toBeGreaterThan(before?.currentTime ?? 0);
+
+    await setTabHidden(modPage.page, false);
   });
 });

@@ -12,9 +12,16 @@ export const elements = {
 
   // Elements rendered INSIDE the documentPictureInPicture window (behavioral).
   // The window is only opened by the plugin on a visibilitychange /
-  // enterpictureinpicture trigger while media is present - see the behavioral
-  // specs for how reachability is handled.
+  // enterpictureinpicture trigger while media is present - see
+  // tests/core/pipWindowHelper.ts for how the tests drive that trigger and reach
+  // into the window.
   pipRoot: '#pip-root',
   pipCameras: '.cameras',
   pipWebcams: '#plugin-pip-webcams',
+  pipVideo: '#plugin-pip-webcams video',
+
+  // Body of a chat-notification toast rendered inside the PiP window by
+  // ChatNotifier. The toast itself is styled inline with no stable class, so
+  // this is the only reliable hook.
+  pipChatMessage: '.pip-chat-message-content',
 };

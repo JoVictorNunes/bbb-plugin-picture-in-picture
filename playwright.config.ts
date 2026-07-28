@@ -1,11 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
-import { CI, ELEMENT_WAIT_LONGER_TIME, ELEMENT_WAIT_TIME } from './tests/core/constants';
+import {
+  CI, ELEMENT_WAIT_EXTRA_LONG_TIME, ELEMENT_WAIT_LONGER_TIME, ELEMENT_WAIT_TIME,
+} from './tests/core/constants';
 import { server } from './tests/core/parameters';
 
 export default defineConfig({
   testDir: process.cwd(),
   // Vitest unit tests live under tests/unit and must not be collected by Playwright.
   testIgnore: ['**/tests/unit/**'],
+  // Playwright's 30s default is not enough here: every test creates a meeting and
+  // joins at least one user, and the multi-user suite spins up two browser
+  // contexts and two joins before its body even starts (~25-28s when workers run
+  // in parallel). Scales with TIMEOUT_MULTIPLIER, so CI gets double.
+  timeout: ELEMENT_WAIT_EXTRA_LONG_TIME * 6,
   workers: CI ? 1 : undefined,
   retries: CI ? 1 : 0,
   fullyParallel: true,

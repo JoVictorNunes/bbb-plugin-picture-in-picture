@@ -21,6 +21,8 @@ interface getJoinURLParams {
   isModerator: boolean;
   joinParameter?: string;
   skipSessionDetailsModal?: boolean;
+  /** Display name to join with. Defaults to the shared `fullName` parameter. */
+  fullName?: string;
 }
 
 export interface SessionSettings {
@@ -117,11 +119,11 @@ export async function createMeeting(
 }
 
 export function getJoinURL({
-  meetingID, isModerator, joinParameter, skipSessionDetailsModal,
+  meetingID, isModerator, joinParameter, skipSessionDetailsModal, fullName: userName = fullName,
 }: getJoinURLParams) {
   const pw = isModerator ? moderatorPW : attendeePW;
   const shouldSkipSessionDetailsModal = skipSessionDetailsModal ? '&userdata-bbb_show_session_details_on_join=false' : ''; // default value in settings.yml is true
-  const baseQuery = `fullName=${fullName}&meetingID=${meetingID}&password=${pw}${shouldSkipSessionDetailsModal}`;
+  const baseQuery = `fullName=${encodeURIComponent(userName)}&meetingID=${meetingID}&password=${pw}${shouldSkipSessionDetailsModal}`;
   const query = joinParameter ? `${baseQuery}&${joinParameter}` : baseQuery;
   const apiCall = `join${query}${secret}`;
   const checksum = getChecksum(apiCall);

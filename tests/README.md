@@ -9,30 +9,6 @@ Unit tests (vitest) live under `tests/unit/` and are documented separately – r
 
 ---
 
-## Test scenarios
-
-### Structural (`tests/structural/test.spec.ts`)
-
-Verify that the plugin registers its action-button dropdown item with the correct label and that the
-label toggles between "Activate PiP Window" and "Deactivate PiP Window" when clicked.
-
-### Behavioural – single user (`tests/behavioral/single-user.spec.ts`)
-
-Verify the toggle workflow and the localStorage persistence of the active state using only the
-moderator/presenter.
-
-### Behavioural – multi-user (`tests/behavioral/multi-user.spec.ts`)
-
-Verify that the dropdown toggle is available independently for a moderator and an attendee in the same
-meeting.
-
-> **Note on the PiP window contents.** The plugin renders its grid inside a `documentPictureInPicture`
-> window, which is a separate top-level window that Playwright does not reliably expose as a `Page` in
-> headless Chromium. Assertions that require reaching *inside* that window are guarded and skipped with a
-> documented reason when the window is not reachable, rather than reported as a false pass.
-
----
-
 ## How to run the tests
 
 ### 1 – Install dependencies
@@ -76,22 +52,6 @@ npm run publish-plugin:dev
 
 ---
 
-## Meeting isolation
-
-By default every test suite (`test.describe` block) shares **one BBB meeting** for all its tests — the
-meeting is created once in `beforeAll` and torn down in `afterAll`. This is fast but tests within a suite
-depend on the cleanup performed between them.
-
-Setting `TEST_MEETINGS=isolated` switches every suite to **one meeting per test**: the meeting is created
-in `beforeEach` and destroyed in `afterEach`. Tests become fully independent at the cost of more setups.
-
-| Mode | Meetings created | Tests run | When to use |
-|------|-----------------|-----------|-------------|
-| default (`npm test`) | one per suite | serially within each suite | Normal development |
-| isolated (`npm run test:isolated`) | one per test | can run in parallel | Debugging flaky state, CI full isolation |
-
----
-
 ## Running the tests
 
 ```bash
@@ -124,3 +84,72 @@ npx playwright show-report
 | Traces | Attached to every test in the HTML report |
 | Screenshots | Captured for every test |
 | Video | Every test locally; failure-only in CI |
+
+---
+
+## Test scenarios
+
+### Structural (`tests/structural/test.spec.ts`)
+
+Verify that the plugin registers its action-button dropdown item in the actions dropdown and that the
+item is labelled "PiP Window". Clicking the toggle is covered by the single-user behavioural spec, not
+here.
+
+### Behavioural – single user (`tests/behavioral/single-user.spec.ts`)
+
+Verify the toggle workflow and the localStorage persistence of the active state using only the
+moderator/presenter, that the Document Picture-in-Picture window actually opens and renders the plugin
+into it, and that a shared webcam stream is carried into that window and plays there.
+
+The webcam test shares the synthetic camera supplied by Chromium's
+`--use-fake-device-for-media-stream` (the same approach BBB core uses in
+`bigbluebutton-tests/playwright/webcam`). It covers the one mechanic no component test can reach: the
+plugin reads the `MediaStream` off a `<video>` in the **client** document (`pollForVideoSrc` +
+`createVideoSelector`) and re-attaches it to a `<video>` it rendered in the **PiP** document. The test
+asserts `srcObject` is attached and that `currentTime` advances, which only holds if frames are really
+decoding on the other side of the document boundary.
+
+### Behavioural – multi-user (`tests/behavioral/multi-user.spec.ts`)
+
+Verify that the dropdown toggle is available independently for a moderator and an attendee in the same
+meeting, and that a chat message sent by the attendee surfaces as a toast inside the moderator's PiP
+window. The chat case needs two users because `ChatNotifier` deliberately skips the current user's own
+messages (`msg.senderId !== currentUser.userId`).
+
+> **Note on the PiP window contents.** The plugin renders its grid inside a `documentPictureInPicture`
+> window, and that window *is* reachable — Chromium exposes it as an ordinary `about:blank` page on the
+> same `BrowserContext`. This relies on **undocumented behaviour**: the spec requires transient
+> activation for `requestWindow()`, but headless Chromium does not enforce it as written
+> (`navigator.userActivation` reads `true` on a page never interacted with). `openPipWindow` clicks an
+> inert overlay first so a real activation is live should that change, though it buys nothing measurable
+> today. If these tests ever fail there it is not a plugin bug — see `tests/core/pipWindowHelper.ts`.
+>
+> The one thing headless Chromium will not do is background a tab, and the plugin only opens the window
+> from a `visibilitychange` handler that checks `document.hidden`. `page.bringToFront()` on a second page
+> does not flip `document.hidden`, and `Emulation.setPageVisibilityOverride` has been removed from the
+> DevTools protocol. `tests/core/tabVisibilityDriver.ts` therefore overrides the `document.hidden` /
+> `document.visibilityState` getters behind a flag and fires the event itself — see
+> `installVisibilityOverride` / `openPipWindow`. It must be installed on the context **before** the first
+> navigation.
+
+---
+
+## Meeting isolation
+
+By default the structural and single-user suites share **one BBB meeting** across all their tests — it is
+created once in `beforeAll`, and `afterAll` closes the browser context. This is fast, but tests within a
+suite depend on the state each leaves behind.
+
+Setting `TEST_MEETINGS=isolated` switches those two suites to **one meeting per test**, created in
+`beforeEach` and released in `afterEach`. Tests become fully independent at the cost of more setups.
+
+`TEST_MEETINGS` does **not** affect the multi-user suite: its `multiUserTest` fixture is per-test by
+construction, so it always creates a fresh meeting and two browser contexts for every test.
+
+| Mode | Meetings created | Tests run | When to use |
+|------|-----------------|-----------|-------------|
+| default (`npm test`) | one per suite (multi-user: one per test) | serially within each suite | Normal development |
+| isolated (`npm run test:isolated`) | one per test | can run in parallel | Debugging flaky state, CI full isolation |
+
+Note that neither mode ends the meeting on the BBB server — nothing calls `/api/end`, so meetings linger
+until the server times them out.
