@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getRoleColor, getInitials } from '../../src/plugin-pip/components/chat/utils';
+import { getRoleColor, getInitials } from '../../../../../src/plugin-pip/components/chat/utils';
 
 describe('getRoleColor', () => {
   it('returns the moderator color', () => {

@@ -1,5 +1,30 @@
-import { describe, it, expect } from 'vitest';
-import { calculateOptimalGrid, findOptimalGrid, ASPECT_RATIO } from '../../src/plugin-pip/components/streams/utils';
+import {
+  describe, it, expect, beforeEach, afterEach,
+} from 'vitest';
+import {
+  ASPECT_RATIO,
+  calculateOptimalGrid,
+  createVideoSelector,
+  extractVideoStreamIds,
+  findOptimalGrid,
+  range,
+} from '../../../../../src/plugin-pip/components/streams/utils';
+
+describe('range', () => {
+  it('returns the half-open interval [start, end)', () => {
+    expect(range(0, 3)).toEqual([0, 1, 2]);
+    expect(range(2, 5)).toEqual([2, 3, 4]);
+  });
+
+  it('returns an empty array when start >= end', () => {
+    expect(range(3, 3)).toEqual([]);
+    expect(range(5, 2)).toEqual([]);
+  });
+
+  it('supports negative starts', () => {
+    expect(range(-2, 1)).toEqual([-2, -1, 0]);
+  });
+});
 
 describe('calculateOptimalGrid', () => {
   it('fills a single cell to the full canvas at the 4:3 aspect ratio', () => {
@@ -78,5 +103,45 @@ describe('findOptimalGrid', () => {
     const grid = findOptimalGrid({ width: 800, height: 600 }, 1, 0, true);
     expect(grid.columns).toBeGreaterThanOrEqual(2);
     expect(grid.filledArea).toBeGreaterThan(0);
+  });
+});
+
+describe('createVideoSelector', () => {
+  it('builds a scoped selector for the given stream id', () => {
+    expect(createVideoSelector('abc')).toBe('.video-provider_list .videoContainer[data-stream="abc"] video');
+  });
+});
+
+describe('extractVideoStreamIds', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('returns an empty array for a null container', () => {
+    expect(extractVideoStreamIds(null)).toEqual([]);
+  });
+
+  it('returns an empty array when there are no video containers', () => {
+    expect(extractVideoStreamIds(container)).toEqual([]);
+  });
+
+  it('collects the data-stream attribute of each video container in order', () => {
+    container.innerHTML = `
+      <div class="videoContainer" data-stream="s1"></div>
+      <div class="videoContainer" data-stream="s2"></div>
+    `;
+    expect(extractVideoStreamIds(container)).toEqual(['s1', 's2']);
+  });
+
+  it('yields null for a video container without a data-stream attribute', () => {
+    container.innerHTML = '<div class="videoContainer"></div>';
+    expect(extractVideoStreamIds(container)).toEqual([null]);
   });
 });

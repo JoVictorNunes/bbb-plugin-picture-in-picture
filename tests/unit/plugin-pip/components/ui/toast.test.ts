@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getBackgroundColor, getIcon } from '../../src/plugin-pip/components/ui/toast';
+import { getBackgroundColor, getIcon } from '../../../../../src/plugin-pip/components/ui/toast';
 
 describe('getBackgroundColor', () => {
   it('maps each toast type to its background color', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useRerenderRef } from '../../src/common/hooks';
+import { useRerenderRef } from '../../../src/common/hooks';
 
 describe('useRerenderRef', () => {
   it('exposes the initial value through the proxied ref', () => {

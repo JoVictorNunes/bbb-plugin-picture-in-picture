@@ -8,7 +8,7 @@ vi.mock('bigbluebutton-html-plugin-sdk', () => ({
 }));
 
 // eslint-disable-next-line import/first
-import { usePresentationSnapshot } from '../../src/plugin-pip/components/streams/hooks';
+import { usePresentationSnapshot } from '../../../../../src/plugin-pip/components/streams/hooks';
 
 // The hook effect depends on the pluginApi identity, so tests must keep a stable
 // reference across re-renders (a fresh object per render would re-run the effect).
