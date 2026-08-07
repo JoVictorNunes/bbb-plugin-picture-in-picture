@@ -14,47 +14,74 @@ import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
 import { useRerenderRef } from '../../../common/hooks';
 
+const POLL_TIMEOUT = 5000; // 5 seconds
+
+/**
+ * Timers for the polling loops below.
+ *
+ * These run while the main document is hidden - that is the whole point of the
+ * plugin - and browsers throttle timers in a backgrounded page to roughly once
+ * a minute. Scheduling on the PiP window instead keeps them on a page that is
+ * visible, so the loops run at full speed. Falls back to the global timers if
+ * no window was provided, and stops once the PiP window is gone.
+ */
+const scheduler = (pipWindow?: Window) => ({
+  now: () => (pipWindow?.performance ?? performance).now(),
+  isGone: () => Boolean(pipWindow?.closed),
+  schedule: (callback: () => void) => {
+    (pipWindow ?? window).setTimeout(callback);
+  },
+});
+
 const pollForVideoSrc = (
   streamId: string,
-  container: Element = document.body,
+  container: Element | undefined,
+  pipWindow?: Window,
 ): Promise<MediaStream | null> => new Promise((resolve) => {
-  const TIMEOUT = 5000; // 5 seconds
-  const start = performance.now();
+  const timers = scheduler(pipWindow);
+  const start = timers.now();
   const selector = createVideoSelector(streamId);
+  const root = container ?? document.body;
 
   const poll = () => {
-    const timestamp: number = performance.now();
-    const element = container.querySelector(selector);
+    // The window this loop is scheduled on is gone; stop rather than leave the
+    // promise - and everything awaiting it - pending forever.
+    if (timers.isGone()) return resolve(null);
+    const timestamp: number = timers.now();
+    const element = root.querySelector(selector);
     if (element && element instanceof HTMLVideoElement && element.srcObject) {
       return resolve(element.srcObject as MediaStream);
     }
-    if (timestamp - start > TIMEOUT) {
+    if (timestamp - start > POLL_TIMEOUT) {
       return resolve(null);
     }
-    return setTimeout(poll);
+    return timers.schedule(poll);
   };
 
-  setTimeout(poll);
+  timers.schedule(poll);
 });
 
-const pollForScreenshareSrc = (): Promise<MediaProvider | null> => new Promise((resolve) => {
-  const TIMEOUT = 5000;
-  const start = performance.now();
+const pollForScreenshareSrc = (pipWindow?: Window): Promise<MediaProvider | null> => new Promise(
+  (resolve) => {
+    const timers = scheduler(pipWindow);
+    const start = timers.now();
 
-  const poll = () => {
-    const timestamp: number = performance.now();
-    const element = document.querySelector('#screenshareContainer video');
-    if (element && element instanceof HTMLVideoElement && element.srcObject) {
-      return resolve(element.srcObject);
-    }
-    if (timestamp - start > TIMEOUT) {
-      return resolve(null);
-    }
-    return setTimeout(poll);
-  };
+    const poll = () => {
+      if (timers.isGone()) return resolve(null);
+      const timestamp: number = timers.now();
+      const element = document.querySelector('#screenshareContainer video');
+      if (element && element instanceof HTMLVideoElement && element.srcObject) {
+        return resolve(element.srcObject);
+      }
+      if (timestamp - start > POLL_TIMEOUT) {
+        return resolve(null);
+      }
+      return timers.schedule(poll);
+    };
 
-  setTimeout(poll);
-});
+    timers.schedule(poll);
+  },
+);
 
 const VIDEO_LIST_CLASSNAME = 'video-provider_list';
 
@@ -155,6 +182,7 @@ function StreamsComponent({
   const { image: slideImage, isLoading: slideLoading } = usePresentationSnapshot(
     pluginApi,
     slideEnabled,
+    pipWindow,
   );
 
   useEffect(() => {
@@ -178,7 +206,7 @@ function StreamsComponent({
           // Only poll for streams we do not already hold a live handle to.
           const srcObject = cached && isStreamLive(cached)
             ? cached
-            : await pollForVideoSrc(stream.streamId, videoList);
+            : await pollForVideoSrc(stream.streamId, videoList, pipWindow);
 
           if (srcObject) {
             resolvedStreamsRef.current.set(stream.streamId, srcObject);
@@ -205,7 +233,7 @@ function StreamsComponent({
       });
 
       if (isSharing) {
-        const srcObject = await pollForScreenshareSrc();
+        const srcObject = await pollForScreenshareSrc(pipWindow);
         if (srcObject) {
           const screenshareItem: ScreenshareMedia = {
             type: 'screenshare',
