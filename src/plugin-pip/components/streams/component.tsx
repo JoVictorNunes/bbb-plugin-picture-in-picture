@@ -5,12 +5,14 @@ import { useVideoStreams, useScreenshare, usePresentationSnapshot } from './hook
 import WebcamItem from './webcam-item';
 import Video from './video';
 import Skeleton from '../ui/skeleton';
-import { range } from './utils';
+import {
+  createVideoSelector,
+  findOptimalGrid,
+  extractVideoStreamIds,
+} from './utils';
 import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
 import { useRerenderRef } from '../../../common/hooks';
-
-const createVideoSelector = (streamId: string) => `.video-provider_list .videoContainer[data-stream="${streamId}"] video`;
 
 const pollForVideoSrc = (
   streamId: string,
@@ -53,86 +55,6 @@ const pollForScreenshareSrc = (): Promise<MediaProvider | null> => new Promise((
 
   setTimeout(poll);
 });
-
-const ASPECT_RATIO = 4 / 3;
-
-const calculateOptimalGrid = (
-  canvasWidth: number,
-  canvasHeight: number,
-  gutter: number,
-  aspectRatio: number,
-  numItems: number,
-  columns = 1,
-) => {
-  const rows = Math.ceil(numItems / columns);
-  const gutterTotalWidth = (columns - 1) * gutter;
-  const gutterTotalHeight = (rows - 1) * gutter;
-  const usableWidth = canvasWidth - gutterTotalWidth;
-  const usableHeight = canvasHeight - gutterTotalHeight;
-  let cellWidth = Math.floor(usableWidth / columns);
-  let cellHeight = Math.ceil(cellWidth / aspectRatio);
-  if ((cellHeight * rows) > usableHeight) {
-    cellHeight = Math.floor(usableHeight / rows);
-    cellWidth = Math.ceil(cellHeight * aspectRatio);
-  }
-  return {
-    columns,
-    rows,
-    width: (cellWidth * columns) + gutterTotalWidth,
-    height: (cellHeight * rows) + gutterTotalHeight,
-    filledArea: (cellWidth * cellHeight) * numItems,
-  };
-};
-
-const findOptimalGrid = (
-  gridRect: { width: number; height: number } | null,
-  numItems: number,
-  gutter: number,
-  contentFocused = false,
-) => {
-  if (numItems < 1) {
-    return {
-      rows: 0,
-      filledArea: 0,
-      columns: 0,
-      height: 0,
-      width: 0,
-    };
-  }
-
-  const canvasWidth = gridRect?.width ?? 0;
-  const canvasHeight = gridRect?.height ?? 0;
-
-  const effectiveItems = contentFocused ? numItems + 3 : numItems;
-  const minColumns = contentFocused ? 2 : 1;
-
-  const newOptimalGrid = range(minColumns, effectiveItems + 1)
-    .reduce((currentGrid, col) => {
-      const testGrid = calculateOptimalGrid(
-        canvasWidth,
-        canvasHeight,
-        gutter,
-        ASPECT_RATIO,
-        effectiveItems,
-        col,
-      );
-      const betterThanCurrent = testGrid.filledArea > currentGrid.filledArea;
-      return betterThanCurrent ? testGrid : currentGrid;
-    }, {
-      rows: 0,
-      filledArea: 0,
-      columns: 0,
-      height: 0,
-      width: 0,
-    });
-
-  return newOptimalGrid;
-};
-
-const extractVideoStreamIds = (container: Element | null): string[] => {
-  const items = container ? Array.from(container.querySelectorAll('.videoContainer')) : [];
-  return items.map((item) => item.getAttribute('data-stream'));
-};
 
 const VIDEO_LIST_CLASSNAME = 'video-provider_list';
 
