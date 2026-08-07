@@ -34,6 +34,7 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
   const { intl } = useI18n(pluginApi);
   const pipActiveRef = React.useRef(active ?? true);
   const pipWindowRef = React.useRef<Window | null>(null);
+  const openingPipRef = React.useRef(false);
   const hasMediaRef = React.useRef(false);
   const [pipActive, setPipActive] = React.useState<boolean>(active ?? true);
   const [showFocusWarning, setShowFocusWarning] = React.useState(false);
@@ -74,13 +75,23 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
       if (isPipSupported && pipActiveRef.current && hasMediaRef.current) {
         // @ts-expect-error This web API may not be supported by all major browsers.
         if (documentPictureInPicture.window) return false;
+        // Both triggers - visibilitychange and the mediaSession action - can
+        // reach the check above before either has finished awaiting
+        // requestWindow, so the guard alone does not prevent a double open.
+        if (openingPipRef.current) return false;
+        openingPipRef.current = true;
 
-        // @ts-expect-error This web API may not be supported by all major browsers.
-        const pipWindow = await documentPictureInPicture.requestWindow({
-          height: 270,
-          width: 480,
-          preferInitialWindowPlacement: true,
-        });
+        let pipWindow;
+        try {
+          // @ts-expect-error This web API may not be supported by all major browsers.
+          pipWindow = await documentPictureInPicture.requestWindow({
+            height: 270,
+            width: 480,
+            preferInitialWindowPlacement: true,
+          });
+        } finally {
+          openingPipRef.current = false;
+        }
 
         pipWindowRef.current = pipWindow;
 
@@ -192,7 +203,11 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
     if (!isPipSupported || !pipActive) return undefined;
 
     if (showFocusWarning) {
+      // The anchor belongs to the BBB client, not to this plugin: if it is ever
+      // renamed or simply not rendered, dereferencing it would throw out of the
+      // effect. Skipping the warning is the harmless outcome.
       const actionsButton = document.querySelector('[data-test="actionsButton"]');
+      if (!actionsButton) return undefined;
       const rect = actionsButton.getBoundingClientRect();
       pluginApi.setFloatingWindows([
         new FloatingWindow({
