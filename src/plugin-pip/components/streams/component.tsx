@@ -148,6 +148,8 @@ function StreamsComponent({
   // pollForVideoSrc timeout.
   const resolvedStreamsRef = React.useRef<Map<string, MediaStream>>(new Map());
   const stalledTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const observerRef = React.useRef<MutationObserver | null>(null);
+  const observedNodeRef = React.useRef<Element | null>(null);
 
   /**
    * A tile reported that its stream stopped delivering frames. Drop it from the
@@ -169,6 +171,36 @@ function StreamsComponent({
     if (stalledTimeoutRef.current) clearTimeout(stalledTimeoutRef.current);
   }, []);
 
+  /**
+   * Point the MutationObserver at the client's current video list.
+   *
+   * The node used to be resolved once, so if the client ever replaced that
+   * element the observer would be left watching a detached node and the grid
+   * would silently stop refreshing - forever, with no error anywhere. This
+   * revalidates identity and connectedness instead, and is cheap enough to run
+   * on every resolution pass.
+   */
+  const ensureObservingVideoList = React.useCallback(() => {
+    const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0] ?? null;
+    const observed = observedNodeRef.current;
+
+    if (observed === targetNode && (!observed || observed.isConnected)) return;
+
+    observerRef.current?.disconnect();
+    observedNodeRef.current = targetNode;
+
+    if (!targetNode) return;
+
+    if (!observerRef.current) {
+      observerRef.current = new MutationObserver(() => setLastUpdate(Date.now()));
+    }
+    observerRef.current.observe(targetNode, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+  }, []);
+
   const {
     data: videoStreamsData,
   } = useVideoStreams(pluginApi);
@@ -187,6 +219,9 @@ function StreamsComponent({
 
   useEffect(() => {
     async function update() {
+      // Cheap, and the only thing that keeps the observer from silently dying
+      // if the client re-creates its video list.
+      ensureObservingVideoList();
       const videoList = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
       const videoStreamIds = extractVideoStreamIds(videoList);
       const videoIndexes = Object.fromEntries(Object.entries(videoStreamIds)
@@ -282,24 +317,18 @@ function StreamsComponent({
     return () => {
       cancelled = true;
     };
-  }, [videoStreamsData, screenshareData, slideImage, slideLoading, slideEnabled, lastUpdate]);
+  }, [videoStreamsData, screenshareData, slideImage, slideLoading, slideEnabled, lastUpdate,
+    ensureObservingVideoList]);
 
   useEffect(() => {
-    const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
-    const config = { attributes: true, childList: true, subtree: true };
-
-    const callback = () => {
-      setLastUpdate(Date.now());
-    };
-
-    const observer = new MutationObserver(callback);
-
-    if (targetNode) observer.observe(targetNode, config);
+    ensureObservingVideoList();
 
     return () => {
-      observer.disconnect();
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      observedNodeRef.current = null;
     };
-  }, [videoStreamsData]);
+  }, [ensureObservingVideoList]);
 
   const paddingInline = camerasRef.current ? parseInt(pipWindow.getComputedStyle(camerasRef.current)
     .getPropertyValue('padding-inline'), 10) : 8;
