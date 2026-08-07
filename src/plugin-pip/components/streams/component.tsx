@@ -6,10 +6,16 @@ import WebcamItem from './webcam-item';
 import Video from './video';
 import Skeleton from '../ui/skeleton';
 import {
-  createVideoSelector,
   findOptimalGrid,
   extractVideoStreamIds,
 } from './utils';
+import {
+  SCREENSHARE_VIDEO_SELECTOR,
+  VIDEO_LIST_CLASSNAME,
+  createVideoSelector,
+  getVideoListContainer,
+  reportMissingSelector,
+} from '../../../common/bbb-selectors';
 import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
 import { useRerenderRef } from '../../../common/hooks';
@@ -35,7 +41,7 @@ const scheduler = (pipWindow?: Window) => ({
 
 const pollForVideoSrc = (
   streamId: string,
-  container: Element | undefined,
+  container: Element | null | undefined,
   pipWindow?: Window,
 ): Promise<MediaStream | null> => new Promise((resolve) => {
   const timers = scheduler(pipWindow);
@@ -53,6 +59,10 @@ const pollForVideoSrc = (
       return resolve(element.srcObject as MediaStream);
     }
     if (timestamp - start > POLL_TIMEOUT) {
+      reportMissingSelector(
+        createVideoSelector('<streamId>'),
+        `no <video> appeared for stream ${streamId}`,
+      );
       return resolve(null);
     }
     return timers.schedule(poll);
@@ -69,11 +79,12 @@ const pollForScreenshareSrc = (pipWindow?: Window): Promise<MediaProvider | null
     const poll = () => {
       if (timers.isGone()) return resolve(null);
       const timestamp: number = timers.now();
-      const element = document.querySelector('#screenshareContainer video');
+      const element = document.querySelector(SCREENSHARE_VIDEO_SELECTOR);
       if (element && element instanceof HTMLVideoElement && element.srcObject) {
         return resolve(element.srcObject);
       }
       if (timestamp - start > POLL_TIMEOUT) {
+        reportMissingSelector(SCREENSHARE_VIDEO_SELECTOR, 'screenshare is active but has no <video>');
         return resolve(null);
       }
       return timers.schedule(poll);
@@ -82,8 +93,6 @@ const pollForScreenshareSrc = (pipWindow?: Window): Promise<MediaProvider | null
     timers.schedule(poll);
   },
 );
-
-const VIDEO_LIST_CLASSNAME = 'video-provider_list';
 
 /**
  * A stream is worth reusing only while it can still deliver frames. A stream
@@ -181,7 +190,7 @@ function StreamsComponent({
    * on every resolution pass.
    */
   const ensureObservingVideoList = React.useCallback(() => {
-    const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0] ?? null;
+    const targetNode = getVideoListContainer();
     const observed = observedNodeRef.current;
 
     if (observed === targetNode && (!observed || observed.isConnected)) return;
@@ -222,11 +231,16 @@ function StreamsComponent({
       // Cheap, and the only thing that keeps the observer from silently dying
       // if the client re-creates its video list.
       ensureObservingVideoList();
-      const videoList = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
+      const videoList = getVideoListContainer();
       const videoStreamIds = extractVideoStreamIds(videoList);
       const videoIndexes = Object.fromEntries(Object.entries(videoStreamIds)
         .map(([index, streamId]) => ([streamId, Number.parseInt(index, 10)])));
       const cameraStreams = videoStreamsData?.user_camera || [];
+
+      // Absent with nobody sharing is normal; absent while cameras exist is not.
+      if (cameraStreams.length && !videoList) {
+        reportMissingSelector(`.${VIDEO_LIST_CLASSNAME}`, 'cameras are being shared but the list is missing');
+      }
 
       // Cameras that went away must not keep an entry - and must not keep a
       // dead MediaStream alive either.

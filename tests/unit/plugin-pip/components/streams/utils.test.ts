@@ -4,11 +4,11 @@ import {
 import {
   ASPECT_RATIO,
   calculateOptimalGrid,
-  createVideoSelector,
   extractVideoStreamIds,
   findOptimalGrid,
   range,
 } from '../../../../../src/plugin-pip/components/streams/utils';
+import { createVideoSelector } from '../../../../../src/common/bbb-selectors';
 
 describe('range', () => {
   it('returns the half-open interval [start, end)', () => {

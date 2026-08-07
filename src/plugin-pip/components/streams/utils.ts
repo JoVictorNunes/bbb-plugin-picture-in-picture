@@ -8,8 +8,6 @@ export function range(start: number, end: number): number[] {
 
 export const ASPECT_RATIO = 4 / 3;
 
-export const createVideoSelector = (streamId: string) => `.video-provider_list .videoContainer[data-stream="${streamId}"] video`;
-
 export const calculateOptimalGrid = (
   canvasWidth: number,
   canvasHeight: number,

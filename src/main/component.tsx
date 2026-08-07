@@ -8,6 +8,7 @@ import Pip from '../plugin-pip/component';
 import { useVideoStreams, useScreenshare } from '../plugin-pip/components/streams/hooks';
 import FocusWarning from '../plugin-pip/components/warning/component';
 import { useCurrentUserVoice } from '../plugin-pip/components/actions/hooks';
+import { ACTIONS_BUTTON_SELECTOR, reportMissingSelector } from '../common/bbb-selectors';
 import styles from './stylesheet';
 
 const isPipSupported = 'documentPictureInPicture' in window;
@@ -206,8 +207,11 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
       // The anchor belongs to the BBB client, not to this plugin: if it is ever
       // renamed or simply not rendered, dereferencing it would throw out of the
       // effect. Skipping the warning is the harmless outcome.
-      const actionsButton = document.querySelector('[data-test="actionsButton"]');
-      if (!actionsButton) return undefined;
+      const actionsButton = document.querySelector(ACTIONS_BUTTON_SELECTOR);
+      if (!actionsButton) {
+        reportMissingSelector(ACTIONS_BUTTON_SELECTOR, 'anchor for the focus warning');
+        return undefined;
+      }
       const rect = actionsButton.getBoundingClientRect();
       pluginApi.setFloatingWindows([
         new FloatingWindow({
