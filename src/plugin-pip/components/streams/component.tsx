@@ -58,6 +58,14 @@ const pollForScreenshareSrc = (): Promise<MediaProvider | null> => new Promise((
 
 const VIDEO_LIST_CLASSNAME = 'video-provider_list';
 
+/**
+ * A stream is worth reusing only while it can still deliver frames. A stream
+ * whose track ended is the frozen-tile case: it keeps rendering its last frame
+ * and reports a perfectly healthy element, so it has to be dropped explicitly.
+ */
+const isStreamLive = (stream: MediaStream): boolean => stream.active
+  && stream.getVideoTracks().some((track) => track.readyState === 'live');
+
 interface WebcamMedia {
   type: 'webcam';
   srcObject: MediaStream;
@@ -105,6 +113,10 @@ function StreamsComponent({
   const pipWindow = usePipWindow();
   const camerasRef = useRerenderRef<HTMLDivElement>(null);
   const webcamsRef = useRerenderRef<HTMLDivElement>(null);
+  // Streams already resolved from the client DOM, kept across refreshes so a
+  // camera the client never renders cannot make every refresh pay the full
+  // pollForVideoSrc timeout.
+  const resolvedStreamsRef = React.useRef<Map<string, MediaStream>>(new Map());
 
   const {
     data: videoStreamsData,
@@ -129,11 +141,23 @@ function StreamsComponent({
         .map(([index, streamId]) => ([streamId, Number.parseInt(index, 10)])));
       const cameraStreams = videoStreamsData?.user_camera || [];
 
+      // Cameras that went away must not keep an entry - and must not keep a
+      // dead MediaStream alive either.
+      const currentStreamIds = new Set(cameraStreams.map((stream) => stream.streamId));
+      resolvedStreamsRef.current.forEach((_stream, streamId) => {
+        if (!currentStreamIds.has(streamId)) resolvedStreamsRef.current.delete(streamId);
+      });
+
       const videoSrc = cameraStreams.map(
         async (stream) => {
-          const srcObject = await pollForVideoSrc(stream.streamId, videoList);
+          const cached = resolvedStreamsRef.current.get(stream.streamId);
+          // Only poll for streams we do not already hold a live handle to.
+          const srcObject = cached && isStreamLive(cached)
+            ? cached
+            : await pollForVideoSrc(stream.streamId, videoList);
 
           if (srcObject) {
+            resolvedStreamsRef.current.set(stream.streamId, srcObject);
             return {
               type: 'webcam' as const,
               streamId: stream.streamId,
@@ -144,6 +168,7 @@ function StreamsComponent({
             };
           }
 
+          resolvedStreamsRef.current.delete(stream.streamId);
           return null;
         },
       );
@@ -187,12 +212,24 @@ function StreamsComponent({
       return webcams;
     }
 
+    // update() can take seconds (pollForVideoSrc waits for the client to render
+    // a <video>), so a newer run can start while this one is still pending.
+    // Without this guard the slower, older run would publish last and overwrite
+    // fresh streams with stale ones.
+    let cancelled = false;
+
     setLoading(true);
     update()
-      .then(setStreams)
+      .then((nextStreams) => {
+        if (!cancelled) setStreams(nextStreams);
+      })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [videoStreamsData, screenshareData, slideImage, slideLoading, slideEnabled, lastUpdate]);
 
   useEffect(() => {
