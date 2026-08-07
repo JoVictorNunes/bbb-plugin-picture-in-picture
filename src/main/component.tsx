@@ -124,12 +124,6 @@ function MainComponent({ pluginUuid, active }: MainComponentProps): React.ReactN
         icons.href = 'stylesheets/bbb-icons.css';
         pipWindow.document.head.appendChild(icons);
 
-        const fonts = document.createElement('link');
-        fonts.rel = 'stylesheet';
-        fonts.type = 'text/css';
-        fonts.href = 'stylesheets/bbb-icons.css';
-        pipWindow.document.head.appendChild(fonts);
-
         pipRoot.render(
           <Pip
             pluginApi={pluginApi}

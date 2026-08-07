@@ -376,16 +376,23 @@ function StreamsComponent({
   const gridGutter = webcamsRef.current ? parseInt(window.getComputedStyle(webcamsRef.current)
     .getPropertyValue('grid-row-gap'), 10) : 6;
 
+  // While streams are still resolving, size the grid to what the subscription
+  // already reports rather than to a fixed guess of four, so the layout does
+  // not visibly rearrange the moment the real streams arrive.
+  const pendingItemCount = (videoStreamsData?.user_camera?.length ?? 0)
+    + (isSharing || slideEnabled ? 1 : 0);
+  const gridItemCount = streams.length || pendingItemCount || 4;
+
   const optimalGrid = React.useMemo(() => findOptimalGrid(
     {
       width: contentRect.width - (paddingInline * 2),
       height: contentRect.height - (paddingBlock * 2),
     },
-    streams.length || 4,
+    gridItemCount,
     gridGutter,
     contentFocused,
     aspectRatio,
-  ), [contentRect, streams.length, paddingInline, paddingBlock, contentFocused, aspectRatio]);
+  ), [contentRect, gridItemCount, paddingInline, paddingBlock, contentFocused, aspectRatio]);
 
   if (!streams.length && !loading) {
     return null;
@@ -413,7 +420,7 @@ function StreamsComponent({
       }}
     >
       <div id="plugin-pip-webcams" className="webcams" style={style} ref={webcamsRef}>
-        {loading && !streams.length ? Array.from({ length: 4 }).map((_e, i) => i).map((i) => <Skeleton height="unset" key={i} />) : streams.map((item) => {
+        {loading && !streams.length ? Array.from({ length: gridItemCount }).map((_e, i) => i).map((i) => <Skeleton height="unset" key={i} />) : streams.map((item) => {
           if (item.type === 'screenshare') {
             const className = ['pip-video-container', 'pip-screenshare-item'];
             if (contentFocused) className.push('pip-content-focused');
