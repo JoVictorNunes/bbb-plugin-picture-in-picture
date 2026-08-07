@@ -2,7 +2,7 @@ import {
   describe, it, expect, beforeEach, afterEach,
 } from 'vitest';
 import {
-  ASPECT_RATIO,
+  FALLBACK_ASPECT_RATIO,
   calculateOptimalGrid,
   extractVideoStreamIds,
   findOptimalGrid,
@@ -26,9 +26,13 @@ describe('range', () => {
   });
 });
 
+// These exercise the geometry at a fixed ratio, so they pass one explicitly
+// rather than depending on whatever the current default happens to be.
+const FOUR_THIRDS = 4 / 3;
+
 describe('calculateOptimalGrid', () => {
   it('fills a single cell to the full canvas at the 4:3 aspect ratio', () => {
-    const grid = calculateOptimalGrid(400, 300, 0, ASPECT_RATIO, 1, 1);
+    const grid = calculateOptimalGrid(400, 300, 0, FOUR_THIRDS, 1, 1);
     expect(grid).toEqual({
       columns: 1,
       rows: 1,
@@ -39,7 +43,7 @@ describe('calculateOptimalGrid', () => {
   });
 
   it('splits two items across two columns in a single row', () => {
-    const grid = calculateOptimalGrid(400, 300, 0, ASPECT_RATIO, 2, 2);
+    const grid = calculateOptimalGrid(400, 300, 0, FOUR_THIRDS, 2, 2);
     expect(grid).toEqual({
       columns: 2,
       rows: 1,
@@ -50,7 +54,7 @@ describe('calculateOptimalGrid', () => {
   });
 
   it('accounts for the gutter between columns and rows', () => {
-    const grid = calculateOptimalGrid(400, 300, 10, ASPECT_RATIO, 4, 2);
+    const grid = calculateOptimalGrid(400, 300, 10, FOUR_THIRDS, 4, 2);
     // 4 items in 2 columns -> 2 rows; the row height constraint shrinks the
     // cell so the grid fits: cellHeight=145, cellWidth=194.
     expect(grid).toEqual({
@@ -83,13 +87,33 @@ describe('findOptimalGrid', () => {
 
   it('picks a single column for a single item in a non-focused grid', () => {
     const grid = findOptimalGrid({ width: 400, height: 300 }, 1, 0, false);
+    // Defaults to 16:9, so the cell is width-bound: 400 wide, 225 tall.
     expect(grid).toEqual({
+      columns: 1,
+      rows: 1,
+      width: 400,
+      height: 225,
+      filledArea: 90000,
+    });
+  });
+
+  it('lays the grid out to an explicit aspect ratio when given one', () => {
+    const wide = findOptimalGrid({ width: 400, height: 300 }, 1, 0, false);
+    const fourThirds = findOptimalGrid({ width: 400, height: 300 }, 1, 0, false, FOUR_THIRDS);
+
+    expect(fourThirds).toEqual({
       columns: 1,
       rows: 1,
       width: 400,
       height: 300,
       filledArea: 120000,
     });
+    // A 4:3 tile uses the full canvas height where the 16:9 default cannot.
+    expect(fourThirds.height).toBeGreaterThan(wide.height);
+  });
+
+  it('exports a 16:9 fallback, matching the shape of the PiP window', () => {
+    expect(FALLBACK_ASPECT_RATIO).toBeCloseTo(16 / 9);
   });
 
   it('treats a null gridRect as a zero-sized canvas', () => {

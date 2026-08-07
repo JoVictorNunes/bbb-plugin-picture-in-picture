@@ -6,7 +6,12 @@ export function range(start: number, end: number): number[] {
   return result;
 }
 
-export const ASPECT_RATIO = 4 / 3;
+/**
+ * Used until a real video reports its own dimensions. 16:9 matches both the
+ * shape of the PiP window the plugin requests and what webcams typically
+ * publish; a 4:3 grid inside a 16:9 window wastes about a third of the width.
+ */
+export const FALLBACK_ASPECT_RATIO = 16 / 9;
 
 export const calculateOptimalGrid = (
   canvasWidth: number,
@@ -41,6 +46,7 @@ export const findOptimalGrid = (
   numItems: number,
   gutter: number,
   contentFocused = false,
+  aspectRatio: number = FALLBACK_ASPECT_RATIO,
 ) => {
   if (numItems < 1) {
     return {
@@ -64,7 +70,7 @@ export const findOptimalGrid = (
         canvasWidth,
         canvasHeight,
         gutter,
-        ASPECT_RATIO,
+        aspectRatio,
         effectiveItems,
         col,
       );

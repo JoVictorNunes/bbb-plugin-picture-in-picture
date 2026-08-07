@@ -6,6 +6,7 @@ import WebcamItem from './webcam-item';
 import Video from './video';
 import Skeleton from '../ui/skeleton';
 import {
+  FALLBACK_ASPECT_RATIO,
   findOptimalGrid,
   extractVideoStreamIds,
 } from './utils';
@@ -148,6 +149,7 @@ function StreamsComponent({
   const [streams, setStreams] = React.useState<GridMedia[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [lastUpdate, setLastUpdate] = React.useState(Date.now());
+  const [aspectRatio, setAspectRatio] = React.useState(FALLBACK_ASPECT_RATIO);
   const { content: contentRect, contentFocused } = useLayoutContext();
   const pipWindow = usePipWindow();
   const camerasRef = useRerenderRef<HTMLDivElement>(null);
@@ -344,6 +346,28 @@ function StreamsComponent({
     };
   }, [ensureObservingVideoList]);
 
+  // Tiles are laid out to the shape of the video actually being published
+  // rather than to a fixed guess, which would letterbox every tile and waste a
+  // large slice of an already small window.
+  useEffect(() => {
+    const firstWebcam = streams.find((item) => item.type === 'webcam') as WebcamMedia | undefined;
+    if (!firstWebcam) return;
+
+    const settings = firstWebcam.srcObject.getVideoTracks()[0]?.getSettings();
+    if (settings?.width && settings?.height) {
+      setAspectRatio(settings.width / settings.height);
+      return;
+    }
+
+    // Remote tracks often report no dimensions, so fall back to what the
+    // client's own element resolved.
+    const element = getVideoListContainer()
+      ?.querySelector(createVideoSelector(firstWebcam.streamId));
+    if (element instanceof HTMLVideoElement && element.videoWidth && element.videoHeight) {
+      setAspectRatio(element.videoWidth / element.videoHeight);
+    }
+  }, [streams]);
+
   const paddingInline = camerasRef.current ? parseInt(pipWindow.getComputedStyle(camerasRef.current)
     .getPropertyValue('padding-inline'), 10) : 8;
   const paddingBlock = camerasRef.current ? parseInt(pipWindow.getComputedStyle(camerasRef.current)
@@ -360,7 +384,8 @@ function StreamsComponent({
     streams.length || 4,
     gridGutter,
     contentFocused,
-  ), [contentRect, streams.length, paddingInline, paddingBlock, contentFocused]);
+    aspectRatio,
+  ), [contentRect, streams.length, paddingInline, paddingBlock, contentFocused, aspectRatio]);
 
   if (!streams.length && !loading) {
     return null;
