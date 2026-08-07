@@ -6,10 +6,11 @@ interface WebcamItemProps {
   srcObject: MediaStream;
   userTalking: boolean;
   userName: string;
+  onStalled?: () => void;
 }
 
 function WebcamItem({
-  streamId, srcObject, userTalking, userName,
+  streamId, srcObject, userTalking, userName, onStalled,
 }: WebcamItemProps) {
   const [squeezed, setSqueezed] = React.useState(false);
   const observerRef = React.useRef<ResizeObserver | null>(null);
@@ -29,7 +30,7 @@ function WebcamItem({
 
   return (
     <div key={streamId} ref={updateRef} className="pip-video-container">
-      <Video srcObject={srcObject} talking={userTalking} />
+      <Video srcObject={srcObject} talking={userTalking} onStalled={onStalled} />
       {!squeezed && (
         <span className="username">
           {userName}

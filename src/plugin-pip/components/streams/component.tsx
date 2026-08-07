@@ -66,6 +66,9 @@ const VIDEO_LIST_CLASSNAME = 'video-provider_list';
 const isStreamLive = (stream: MediaStream): boolean => stream.active
   && stream.getVideoTracks().some((track) => track.readyState === 'live');
 
+/** Losing one publisher mutes several tracks at once; coalesce into one refresh. */
+const STALLED_REFRESH_DEBOUNCE_MS = 300;
+
 interface WebcamMedia {
   type: 'webcam';
   srcObject: MediaStream;
@@ -117,6 +120,27 @@ function StreamsComponent({
   // camera the client never renders cannot make every refresh pay the full
   // pollForVideoSrc timeout.
   const resolvedStreamsRef = React.useRef<Map<string, MediaStream>>(new Map());
+  const stalledTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * A tile reported that its stream stopped delivering frames. Drop it from the
+   * cache so the next resolution really re-reads the client DOM, and schedule
+   * that resolution. Debounced because losing one publisher usually mutes
+   * several tracks at once, and one refresh answers all of them.
+   */
+  const handleStreamStalled = React.useCallback((streamId: string) => {
+    resolvedStreamsRef.current.delete(streamId);
+
+    if (stalledTimeoutRef.current) clearTimeout(stalledTimeoutRef.current);
+    stalledTimeoutRef.current = setTimeout(() => {
+      stalledTimeoutRef.current = null;
+      setLastUpdate(Date.now());
+    }, STALLED_REFRESH_DEBOUNCE_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (stalledTimeoutRef.current) clearTimeout(stalledTimeoutRef.current);
+  }, []);
 
   const {
     data: videoStreamsData,
@@ -328,6 +352,7 @@ function StreamsComponent({
               srcObject={item.srcObject}
               userTalking={item.userTalking}
               userName={item.userName}
+              onStalled={() => handleStreamStalled(item.streamId)}
             />
           );
         })}
