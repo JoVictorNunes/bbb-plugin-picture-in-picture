@@ -6,6 +6,7 @@ import {
   calculateOptimalGrid,
   extractVideoStreamIds,
   findOptimalGrid,
+  isStreamLive,
   range,
 } from '../../../../../src/plugin-pip/components/streams/utils';
 import { createVideoSelector } from '../../../../../src/common/bbb-selectors';
@@ -164,8 +165,51 @@ describe('extractVideoStreamIds', () => {
     expect(extractVideoStreamIds(container)).toEqual(['s1', 's2']);
   });
 
-  it('yields null for a video container without a data-stream attribute', () => {
-    container.innerHTML = '<div class="videoContainer"></div>';
-    expect(extractVideoStreamIds(container)).toEqual([null]);
+  it('skips video containers without a data-stream attribute', () => {
+    container.innerHTML = `
+      <div class="videoContainer" data-stream="s1"></div>
+      <div class="videoContainer"></div>
+      <div class="videoContainer" data-stream="s2"></div>
+    `;
+    expect(extractVideoStreamIds(container)).toEqual(['s1', 's2']);
+  });
+});
+
+describe('isStreamLive', () => {
+  const makeStream = (
+    active: boolean,
+    tracks: Array<Partial<MediaStreamTrack>>,
+  ): MediaStream => ({
+    active,
+    getVideoTracks: () => tracks,
+  } as unknown as MediaStream);
+
+  it('accepts an active stream with a live, unmuted video track', () => {
+    expect(isStreamLive(makeStream(true, [{ readyState: 'live', muted: false }]))).toBe(true);
+  });
+
+  it('rejects a stream whose only video track has ended', () => {
+    expect(isStreamLive(makeStream(true, [{ readyState: 'ended', muted: false }]))).toBe(false);
+  });
+
+  it('rejects a stream whose only video track is muted, even while live', () => {
+    // The frozen-tile case: a remote track that stopped receiving media keeps
+    // readyState 'live' and only flips its muted flag.
+    expect(isStreamLive(makeStream(true, [{ readyState: 'live', muted: true }]))).toBe(false);
+  });
+
+  it('rejects an inactive stream regardless of its tracks', () => {
+    expect(isStreamLive(makeStream(false, [{ readyState: 'live', muted: false }]))).toBe(false);
+  });
+
+  it('rejects a stream with no video tracks at all', () => {
+    expect(isStreamLive(makeStream(true, []))).toBe(false);
+  });
+
+  it('accepts a stream where at least one of several tracks still delivers', () => {
+    expect(isStreamLive(makeStream(true, [
+      { readyState: 'ended', muted: false },
+      { readyState: 'live', muted: false },
+    ]))).toBe(true);
   });
 });

@@ -89,5 +89,18 @@ export const findOptimalGrid = (
 
 export const extractVideoStreamIds = (container: Element | null): string[] => {
   const items = container ? Array.from(container.querySelectorAll('.videoContainer')) : [];
-  return items.map((item) => item.getAttribute('data-stream'));
+  return items
+    .map((item) => item.getAttribute('data-stream'))
+    .filter((streamId): streamId is string => streamId !== null);
 };
+
+/**
+ * A stream is worth rendering only while it can still deliver frames. Two
+ * failure shapes matter here: a track that ENDED is gone for good, and a track
+ * that is MUTED has stopped receiving media - its readyState stays 'live' and
+ * stream.active stays true, so only the muted flag betrays it. Both render as
+ * a frozen last frame on an otherwise healthy-looking element, which is why
+ * both have to be checked explicitly.
+ */
+export const isStreamLive = (stream: MediaStream): boolean => stream.active
+  && stream.getVideoTracks().some((track) => track.readyState === 'live' && !track.muted);
