@@ -188,9 +188,11 @@ function StreamsComponent({
   const pipWindow = usePipWindow();
   const camerasRef = useRerenderRef<HTMLDivElement>(null);
   const webcamsRef = useRerenderRef<HTMLDivElement>(null);
-  // Streams already resolved from the client DOM, kept across refreshes so a
-  // camera the client never renders cannot make every refresh pay the full
-  // pollForVideoSrc timeout.
+  // Streams already resolved from the client DOM, kept across refreshes so
+  // tiles that are already playing skip pollForVideoSrc entirely. Only
+  // successful resolutions are cached: a camera the client never renders
+  // (paginated away) resolves to null, is evicted below, and pays the full
+  // poll timeout again on every refresh.
   const resolvedStreamsRef = React.useRef<Map<string, MediaStream>>(new Map());
   const stalledTimeoutRef = React.useRef<number | null>(null);
   const observerRef = React.useRef<MutationObserver | null>(null);
@@ -267,6 +269,13 @@ function StreamsComponent({
   );
 
   useEffect(() => {
+    // update() can take seconds (pollForVideoSrc waits for the client to render
+    // a <video>), so a newer run can start while this one is still pending.
+    // Without this guard the slower, older run would publish last and overwrite
+    // fresh streams with stale ones - both in the rendered state and in the
+    // shared resolved-stream cache.
+    let cancelled = false;
+
     async function update() {
       // Cheap, and the only thing that keeps the observer from silently dying
       // if the client re-creates its video list.
@@ -298,7 +307,9 @@ function StreamsComponent({
             : await pollForVideoSrc(stream.streamId, videoList, pipWindow);
 
           if (srcObject) {
-            resolvedStreamsRef.current.set(stream.streamId, srcObject);
+            // A superseded run must not touch the shared cache either: it could
+            // overwrite a fresher stream the newer run just resolved.
+            if (!cancelled) resolvedStreamsRef.current.set(stream.streamId, srcObject);
             return {
               type: 'webcam' as const,
               streamId: stream.streamId,
@@ -312,7 +323,9 @@ function StreamsComponent({
             };
           }
 
-          resolvedStreamsRef.current.delete(stream.streamId);
+          // Same for eviction: a cancelled run timing out must not evict an
+          // entry the newer run has meanwhile resolved.
+          if (!cancelled) resolvedStreamsRef.current.delete(stream.streamId);
           return null;
         },
       );
@@ -360,11 +373,6 @@ function StreamsComponent({
       return webcams;
     }
 
-    // update() can take seconds (pollForVideoSrc waits for the client to render
-    // a <video>), so a newer run can start while this one is still pending.
-    // Without this guard the slower, older run would publish last and overwrite
-    // fresh streams with stale ones.
-    let cancelled = false;
     let retryTimer: number | null = null;
 
     setLoading(true);
