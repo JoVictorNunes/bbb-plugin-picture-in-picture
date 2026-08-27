@@ -35,11 +35,6 @@ export function reportMissingSelector(selector: string, context: string): void {
   );
 }
 
-/** Clears the warn-once state. Exposed for tests. */
-export function resetMissingSelectorReports(): void {
-  reported.clear();
-}
-
 /**
  * Resolve the client's webcam list container. Deliberately silent: the element
  * legitimately does not exist while nobody is sharing a camera, so callers
