@@ -224,7 +224,7 @@ const cssRules = css`
   }
 
   .pip-avatar-circle {
-    border-radius: 5px;
+    border-radius: 50%;
     display: grid;
     place-items: center;
     color: #fff;
@@ -249,9 +249,28 @@ const cssRules = css`
     }
   }
 
-  .pip-avatar-item.talking .pip-avatar-circle,
-  .pip-avatar-item.talking img {
+  /*
+    The avatar image fills the whole tile, and the tile clips its overflow, so an
+    outward box-shadow would be invisible there — it pulses inwards instead.
+  */
+  @keyframes avatar-pulse-inset {
+    0% {
+      box-shadow: inset 0 0 0 0 var(--avatar-color);
+    }
+    70% {
+      box-shadow: inset 0 0 0 0.5625rem transparent;
+    }
+    100% {
+      box-shadow: inset 0 0 0 0 transparent;
+    }
+  }
+
+  .pip-avatar-item.talking .pip-avatar-circle {
     animation: avatar-pulse 1s ease-in infinite;
+  }
+
+  .pip-avatar-item.talking img {
+    animation: avatar-pulse-inset 1s ease-in infinite;
   }
 
   @keyframes pulse {

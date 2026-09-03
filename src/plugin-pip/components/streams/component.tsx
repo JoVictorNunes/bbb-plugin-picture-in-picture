@@ -12,6 +12,7 @@ import { range } from './utils';
 import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
 import { useRerenderRef } from '../../../common/hooks';
+import { MAX_TILES } from './queries';
 
 const createVideoSelector = (streamId: string) => `.video-provider_list .videoContainer[data-stream="${streamId}"] video`;
 
@@ -168,10 +169,9 @@ interface SlideLoadingMedia {
 interface AvatarMedia {
   type: 'avatar';
   streamId: string;
-  userId: string;
-  userName: string;
-  avatar: string;
-  color: string;
+  userName: string | null;
+  avatar: string | null;
+  color: string | null;
   userTalking: boolean;
 }
 
@@ -255,19 +255,6 @@ function StreamsComponent({
         return indexA - indexB;
       });
 
-      const avatars: GridMedia[] = (usersData?.user || [])
-        .map((user) => ({
-          type: 'avatar' as const,
-          streamId: `avatar-${user.userId}`,
-          userId: user.userId,
-          userName: user.name,
-          avatar: user.avatar,
-          color: user.color,
-          userTalking: user.voice?.talking ?? false,
-        }));
-
-      const tiles: GridMedia[] = [...webcams, ...avatars];
-
       if (isSharing) {
         const srcObject = await pollForScreenshareSrc();
         if (srcObject) {
@@ -276,7 +263,7 @@ function StreamsComponent({
             streamId: screenshareData.screenshare[0].stream,
             srcObject,
           };
-          return [screenshareItem, ...tiles];
+          return [screenshareItem, ...webcams];
         }
       }
 
@@ -286,7 +273,7 @@ function StreamsComponent({
           streamId: SLIDE_STREAM_ID,
           image: slideImage,
         };
-        return [slideItem, ...tiles];
+        return [slideItem, ...webcams];
       }
 
       if (slideEnabled && slideLoading) {
@@ -294,10 +281,10 @@ function StreamsComponent({
           type: 'slide-loading',
           streamId: SLIDE_LOADING_STREAM_ID,
         };
-        return [slideLoadingItem, ...tiles];
+        return [slideLoadingItem, ...webcams];
       }
 
-      return tiles;
+      return webcams;
     }
 
     setLoading(true);
@@ -306,8 +293,26 @@ function StreamsComponent({
       .finally(() => {
         setLoading(false);
       });
-  }, [videoStreamsData, screenshareData, usersData, slideImage,
-    slideLoading, slideEnabled, lastUpdate]);
+  }, [videoStreamsData, screenshareData, slideImage, slideLoading, slideEnabled, lastUpdate]);
+
+  // Avatars need no async resolution, so they are derived straight from the
+  // subscription instead of going through `update()` — otherwise every
+  // `voice.talking` flap would re-run the DOM polling above.
+  const avatars = React.useMemo<AvatarMedia[]>(() => (usersData?.user || [])
+    .map((user) => ({
+      type: 'avatar' as const,
+      streamId: `avatar-${user.userId}`,
+      userName: user.name,
+      avatar: user.avatar,
+      color: user.color,
+      userTalking: user.voice?.talking ?? false,
+    })), [usersData]);
+
+  const tiles = React.useMemo<GridMedia[]>(() => {
+    const webcamCount = streams.filter((item) => item.type === 'webcam').length;
+    const freeSlots = Math.max(0, MAX_TILES - webcamCount);
+    return [...streams, ...avatars.slice(0, freeSlots)];
+  }, [streams, avatars]);
 
   useEffect(() => {
     const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];
@@ -339,12 +344,12 @@ function StreamsComponent({
       width: contentRect.width - (paddingInline * 2),
       height: contentRect.height - (paddingBlock * 2),
     },
-    streams.length || 4,
+    tiles.length || 4,
     gridGutter,
     contentFocused,
-  ), [contentRect, streams.length, paddingInline, paddingBlock, contentFocused]);
+  ), [contentRect, tiles.length, paddingInline, paddingBlock, contentFocused]);
 
-  if (!streams.length && !loading) {
+  if (!tiles.length && !loading) {
     return null;
   }
 
@@ -370,7 +375,7 @@ function StreamsComponent({
       }}
     >
       <div id="plugin-pip-webcams" className="webcams" style={style} ref={webcamsRef}>
-        {loading && !streams.length ? Array.from({ length: 4 }).map((_e, i) => i).map((i) => <Skeleton height="unset" key={i} />) : streams.map((item) => {
+        {loading && !tiles.length ? Array.from({ length: 4 }).map((_e, i) => i).map((i) => <Skeleton height="unset" key={i} />) : tiles.map((item) => {
           if (item.type === 'screenshare') {
             const className = ['pip-video-container', 'pip-screenshare-item'];
             if (contentFocused) className.push('pip-content-focused');
@@ -402,7 +407,6 @@ function StreamsComponent({
             return (
               <AvatarItem
                 key={item.streamId}
-                userId={item.userId}
                 userName={item.userName}
                 avatar={item.avatar}
                 color={item.color}

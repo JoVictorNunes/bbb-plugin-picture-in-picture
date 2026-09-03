@@ -1,18 +1,22 @@
 import * as React from 'react';
 
 interface AvatarItemProps {
-  userId: string;
-  userName: string;
-  avatar: string;
-  color: string;
+  userName: string | null;
+  avatar: string | null;
+  color: string | null;
   userTalking: boolean;
 }
 
 function AvatarItem({
-  userId, userName, avatar, color, userTalking,
+  userName, avatar, color, userTalking,
 }: AvatarItemProps) {
   const [squeezed, setSqueezed] = React.useState(false);
+  const [avatarFailed, setAvatarFailed] = React.useState(false);
   const observerRef = React.useRef<ResizeObserver | null>(null);
+
+  React.useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatar]);
 
   const updateRef = React.useCallback((ref: HTMLDivElement | null) => {
     if (observerRef.current) {
@@ -34,15 +38,14 @@ function AvatarItem({
 
   return (
     <div
-      key={userId}
       ref={updateRef}
       className={className.join(' ')}
       style={{ '--avatar-color': color } as React.CSSProperties}
     >
-      {avatar ? (
-        <img src={avatar} alt={userName} />
+      {avatar && !avatarFailed ? (
+        <img src={avatar} alt={userName ?? ''} onError={() => setAvatarFailed(true)} />
       ) : (
-        <div className="pip-avatar-circle" style={{ backgroundColor: color }}>
+        <div className="pip-avatar-circle" style={{ backgroundColor: color ?? undefined }}>
           {userName?.charAt(0)}
         </div>
       )}

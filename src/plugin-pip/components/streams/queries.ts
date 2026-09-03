@@ -26,18 +26,22 @@ export interface VideoStreamsSubscriptionResult {
   }[];
 }
 
+// Upper bound for the number of tiles shown in the grid. Avatars only fill the
+// slots left over by the webcams, so the PiP window never gets overcrowded.
+export const MAX_TILES = 10;
+
 export const USERS_SUBSCRIPTION = `
   subscription Users {
     user(
       where: {
         isSharingCamera: { _eq: false },
       },
-      limit: 10,
-      order_by: {
-        nameSortable: asc,
-        userId: asc,
-        voice: { lastFloorTime: desc_nulls_last },
-      },
+      limit: ${MAX_TILES},
+      order_by: [
+        { nameSortable: asc },
+        { userId: asc },
+        { voice: { lastFloorTime: desc_nulls_last } },
+      ],
     ) {
       userId
       name
@@ -53,9 +57,9 @@ export const USERS_SUBSCRIPTION = `
 export interface UsersSubscriptionResult {
   user?: {
     userId: string;
-    name: string;
-    avatar: string;
-    color: string;
+    name: string | null;
+    avatar: string | null;
+    color: string | null;
     voice?: { talking: boolean };
   }[];
 }
