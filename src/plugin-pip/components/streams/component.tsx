@@ -9,6 +9,7 @@ import AvatarItem from './avatar-item';
 import Video from './video';
 import Skeleton from '../ui/skeleton';
 import {
+  availableAvatarSlots,
   createVideoSelector,
   findOptimalGrid,
   extractVideoStreamIds,
@@ -16,7 +17,6 @@ import {
 import { useLayoutContext } from '../contexts/layout';
 import { usePipWindow } from '../contexts/pip-window';
 import { useRerenderRef } from '../../../common/hooks';
-import { MAX_TILES } from './queries';
 
 const pollForVideoSrc = (
   streamId: string,
@@ -230,11 +230,14 @@ function StreamsComponent({
       userTalking: user.voice?.talking ?? false,
     })), [usersData]);
 
-  const tiles = React.useMemo<GridMedia[]>(() => {
-    const webcamCount = streams.filter((item) => item.type === 'webcam').length;
-    const freeSlots = Math.max(0, MAX_TILES - webcamCount);
-    return [...streams, ...avatars.slice(0, freeSlots)];
-  }, [streams, avatars]);
+  // Every entry in `streams` already owns a grid cell — the webcams AND the
+  // presentation/screenshare tile — so the cap has to be measured against all of
+  // them, not just the webcams. Counting webcams alone let a meeting with a
+  // presentation overshoot MAX_TILES by the number of content tiles.
+  const tiles = React.useMemo<GridMedia[]>(
+    () => [...streams, ...avatars.slice(0, availableAvatarSlots(streams.length))],
+    [streams, avatars],
+  );
 
   useEffect(() => {
     const targetNode = document.getElementsByClassName(VIDEO_LIST_CLASSNAME)[0];

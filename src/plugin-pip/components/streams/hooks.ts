@@ -8,6 +8,7 @@ import {
   USERS_SUBSCRIPTION,
   type UsersSubscriptionResult,
 } from './queries';
+import { MAX_TILES } from './utils';
 
 export const useVideoStreams = (pluginApi: PluginApi) => {
   const response = pluginApi.useCustomSubscription!<VideoStreamsSubscriptionResult>(
@@ -18,7 +19,7 @@ export const useVideoStreams = (pluginApi: PluginApi) => {
 
 export const useUsers = (pluginApi: PluginApi) => pluginApi.useCustomSubscription!<
   UsersSubscriptionResult
->(USERS_SUBSCRIPTION);
+>(USERS_SUBSCRIPTION, { variables: { limit: MAX_TILES } });
 
 export const useScreenshare = (pluginApi: PluginApi) => {
   const response = pluginApi.useCustomSubscription!<ScreenshareSubscriptionResult>(
